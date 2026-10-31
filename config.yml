@@ -1,0 +1,6 @@
+repo: https://github.com/openwrt/openwrt.git
+branch: openwrt-25.12
+revision: v25.12.6
+
+patch_folders:
+  - patches-25.12

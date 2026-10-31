@@ -1,0 +1,639 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Thu, 24 Sep 2026 13:16:13 +0000
+Subject: [PATCH] ipq40xx: add support for Zyxel NWA1123ACv3 and WAC500
+
+The Zyxel NWA1123ACv3 is a ceiling-mount 802.11ac access point based on
+the Qualcomm AP-DK01.1-C2 reference design. The Zyxel WAC500 is
+electrically identical and differs only in the model ID stored in the
+"mrd" partition, so both devices share qcom-ipq4018-nwa1123acv3.dtsi
+(on top of the platform-wide qcom-ipq4018-zyxel-wac500.dtsi) and their
+DTS files only set the model and compatible.
+
+Hardware
+--------
+SoC:    Qualcomm IPQ4018
+RAM:    256M
+FLASH:  8M SPI-NOR (Macronix MX25L6405D)
+        128M SPI-NAND (Winbond W25N01GV)
+ETH:    1x Gigabit Ethernet (PoE-in)
+WiFi:   Qualcomm IPQ4018 (2.4/5GHz 802.11ac 2x2)
+BTN:    1x Reset
+LED:    1x Multi-Color (RGB)
+Power:  802.3af PoE or 12V DC
+
+The SPI pins use the same pad settings as the stock firmware (read back
+from the TLMM registers): 2mA for CLK/MOSI/MISO and the SPI-NOR chip
+select, 10mA with pull-up for the SPI-NAND chip select.
+
+UART Console
+------------
+Externally accessible on the "CONSOLE" header.
+
+Settings: 3.3V TTL, 115200 8N1
+
+Layout: GND TX RX 3.3V (don't connect, marked with a triangle)
+
+Installation Web-UI
+-------------------
+The device uses a dual-image setup and OpenWrt can only be installed as
+image 0. When the currently running stock firmware is image 0, OpenWrt
+will be installed as image 1, fail to boot and the device returns to
+stock firmware. If this happens, install any version of stock firmware
+so that it runs as image 1, before installing OpenWrt. Alternatively, if
+there already is a valid stock firmware in image 1, the "debug
+dual-image show" and "debug dual-image set boot-image image1" commands
+can be used in the stock CLI via serial/SSH/telnet to switch to image 1.
+
+ * Rename the OpenWrt factory image to a shorter name, for example
+   "openwrt.bin" (the stock firmware has a character limit)
+ * In the web interface, go to "Maintenance" -> "File Manager" ->
+   "Firmware Package" (or click the link next to "Firmware Version"
+   under "Device Information" on the dashboard)
+ * Under "Upload File" browse to the renamed OpenWrt factory image and
+   click on "Upload"
+
+The factory image is a UBI image wrapped in an outer FIT carrying the
+device model ID ("62 e1" for NWA1123ACv3, "63 e1" for WAC500), which the
+stock firmware checks before accepting it. On first boot,
+zyxel-bootconfig marks the OpenWrt image as the selected one so the
+bootloader keeps booting it.
+
+Switch Boot Image
+-----------------
+OpenWrt to stock: "zyxel-bootconfig-ipq set image1"
+Stock to OpenWrt: "debug dual-image set boot-image image0"
+
+Unbrick / Revert to Stock with the Boot Module
+----------------------------------------------
+ * Disconnect the device from power
+ * Configure your machine to 192.168.1.103/24 and start a TFTP server
+ * Put the stock firmware image into the TFTP server root and rename it
+   to "ZLD-current"
+ * Establish a serial connection to the device through the console port
+ * Connect the device to power
+ * When prompted, press a key to abort automatic boot and enter debug
+   mode
+ * Use the "atnz" command to flash the firmware image
+ * Use the "atgo" command to boot from the newly flashed image
+
+MAC addresses
+-------------
+LAN:    base MAC (mrd partition, offset 0xfff8), matches the label
+2.4GHz: base MAC + 1
+5GHz:   base MAC + 2
+
+WiFi board data
+---------------
+The radios report bmi-board-id 16 (2.4GHz) and 17 (5GHz) and use the
+calibration variant "Zyxel-NWA1123ACv3" on both devices. Device-specific
+board data is not in the ath10k board file collection yet, so ath10k
+falls back to the generic bus=ahb,bmi-chip-id=0,bmi-board-id=16/17
+entries of ath10k-board-qca4019. The board data will be submitted
+separately.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ .../uboot-tools/uboot-envtools/files/ipq40xx  |   4 +-
+ .../files/95_apply_bootconfig                 |   4 +-
+ .../ipq40xx/base-files/etc/board.d/02_network |   4 +-
+ .../base-files/lib/upgrade/platform.sh        |   4 +-
+ .../dts/qcom/qcom-ipq4018-nwa1123acv3.dts     |   8 +
+ .../dts/qcom/qcom-ipq4018-nwa1123acv3.dtsi    |  35 ++
+ .../arm/boot/dts/qcom/qcom-ipq4018-wac500.dts |   8 +
+ .../dts/qcom/qcom-ipq4018-zyxel-wac500.dtsi   | 329 ++++++++++++++++++
+ target/linux/ipq40xx/image/generic.mk         |  38 ++
+ 9 files changed, 430 insertions(+), 4 deletions(-)
+ create mode 100644 target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dts
+ create mode 100644 target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dtsi
+ create mode 100644 target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500.dts
+ create mode 100644 target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-zyxel-wac500.dtsi
+
+diff --git a/package/boot/uboot-tools/uboot-envtools/files/ipq40xx b/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
+index fc0ac333349..465f84ac018 100644
+--- a/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
++++ b/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
+@@ -25,7 +25,9 @@ openmesh,a42|\
+ openmesh,a62|\
+ pakedge,wr-1|\
+ plasmacloud,pa1200|\
+-plasmacloud,pa2200)
++plasmacloud,pa2200|\
++zyxel,nwa1123acv3|\
++zyxel,wac500)
+ 	ubootenv_add_uci_config "/dev/mtd5" "0x0" "0x10000" "0x10000"
+ 	;;
+ aruba,ap-303)
+diff --git a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
+index 0c7c2b49f50..7fdf0ebff6e 100644
+--- a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
++++ b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
+@@ -2,7 +2,9 @@ apply_bootconfig() {
+ 	. /lib/functions.sh
+ 
+ 	case $(board_name) in
+-	zyxel,nwa210ax)
++	zyxel,nwa210ax|\
++	zyxel,nwa1123acv3|\
++	zyxel,wac500)
+ 		status="$(zyxel-bootconfig-ipq show | awk '/image0:/ {print $2}')"
+ 		[ "$status" != "selected" ] && zyxel-bootconfig-ipq --force set image0
+ 		;;
+diff --git a/target/linux/ipq40xx/base-files/etc/board.d/02_network b/target/linux/ipq40xx/base-files/etc/board.d/02_network
+index 525e4d81867..12bf3e4f52e 100644
+--- a/target/linux/ipq40xx/base-files/etc/board.d/02_network
++++ b/target/linux/ipq40xx/base-files/etc/board.d/02_network
+@@ -64,7 +64,9 @@ ipq40xx_setup_interfaces()
+ 	mikrotik,sxtsq-5-ac|\
+ 	netgear,ex6100v2|\
+ 	netgear,ex6150v2|\
+-	zte,mf282plus)
++	zte,mf282plus|\
++	zyxel,nwa1123acv3|\
++	zyxel,wac500)
+ 		ucidef_set_interface_lan "lan"
+ 		;;
+ 	aruba,ap-303h|\
+diff --git a/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh b/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
+index 28e11d9070e..b6010e0111d 100644
+--- a/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
++++ b/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
+@@ -129,7 +129,9 @@ platform_do_upgrade() {
+ 	p2w,r619ac-64m|\
+ 	p2w,r619ac-128m|\
+ 	qxwlan,e2600ac-c2|\
+-	wallys,dr40x9)
++	wallys,dr40x9|\
++	zyxel,nwa1123acv3|\
++	zyxel,wac500)
+ 		nand_do_upgrade "$1"
+ 		;;
+ 	alfa-network,ap120c-ac)
+diff --git a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dts b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dts
+new file mode 100644
+index 00000000000..3f00fd51415
+--- /dev/null
++++ b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dts
+@@ -0,0 +1,8 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++#include "qcom-ipq4018-nwa1123acv3.dtsi"
++
++/ {
++	model = "Zyxel NWA1123ACv3";
++	compatible = "zyxel,nwa1123acv3";
++};
+diff --git a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dtsi b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dtsi
+new file mode 100644
+index 00000000000..e4a7b689aae
+--- /dev/null
++++ b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dtsi
+@@ -0,0 +1,35 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++#include "qcom-ipq4018-zyxel-wac500.dtsi"
++
++/ {
++	aliases {
++		led-boot = &led_status_green;
++		led-failsafe = &led_status_red;
++		led-running = &led_status_green;
++		led-upgrade = &led_status_red;
++		label-mac-device = &swport4;
++	};
++};
++
++&swport4 {
++	status = "okay";
++
++	label = "lan";
++	nvmem-cell-names = "mac-address";
++	nvmem-cells = <&macaddr_mrd_fff8 0>;
++};
++
++&wifi0 {
++	status = "okay";
++	nvmem-cell-names = "pre-calibration", "mac-address";
++	nvmem-cells = <&precal_art_1000>, <&macaddr_mrd_fff8 1>;
++	qcom,ath10k-calibration-variant = "Zyxel-NWA1123ACv3";
++};
++
++&wifi1 {
++	status = "okay";
++	nvmem-cell-names = "pre-calibration", "mac-address";
++	nvmem-cells = <&precal_art_5000>, <&macaddr_mrd_fff8 2>;
++	qcom,ath10k-calibration-variant = "Zyxel-NWA1123ACv3";
++};
+diff --git a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500.dts b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500.dts
+new file mode 100644
+index 00000000000..7178db5ddde
+--- /dev/null
++++ b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500.dts
+@@ -0,0 +1,8 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++#include "qcom-ipq4018-nwa1123acv3.dtsi"
++
++/ {
++	model = "Zyxel WAC500";
++	compatible = "zyxel,wac500";
++};
+diff --git a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-zyxel-wac500.dtsi b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-zyxel-wac500.dtsi
+new file mode 100644
+index 00000000000..138da8a057e
+--- /dev/null
++++ b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-zyxel-wac500.dtsi
+@@ -0,0 +1,329 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++#include "qcom-ipq4019.dtsi"
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/input/input.h>
++#include <dt-bindings/leds/common.h>
++#include <dt-bindings/soc/qcom,tcsr.h>
++
++/ {
++	chosen {
++		bootargs-append = " root=/dev/ubiblock0_1";
++	};
++
++	soc {
++		counter@4a1000 {
++			compatible = "qcom,qca-gcnt";
++			reg = <0x4a1000 0x4>;
++		};
++
++		tcsr@1949000 {
++			compatible = "qcom,tcsr";
++			reg = <0x1949000 0x100>;
++			qcom,wifi_glb_cfg = <TCSR_WIFI_GLB_CFG>;
++		};
++
++		ess_tcsr@1953000 {
++			compatible = "qcom,tcsr";
++			reg = <0x1953000 0x1000>;
++			qcom,ess-interface-select = <TCSR_ESS_PSGMII>;
++		};
++
++		tcsr@1957000 {
++			compatible = "qcom,tcsr";
++			reg = <0x1957000 0x100>;
++			qcom,wifi_noc_memtype_m0_m2 = <TCSR_WIFI_NOC_MEMTYPE_M0_M2>;
++		};
++	};
++
++	keys {
++		compatible = "gpio-keys";
++
++		reset {
++			label = "reset";
++			gpios = <&tlmm 63 GPIO_ACTIVE_LOW>;
++			linux,code = <KEY_RESTART>;
++			debounce-interval = <60>;
++		};
++	};
++
++	leds {
++		compatible = "gpio-leds";
++
++		/* single multi-colour status LED (3 GPIO channels) */
++		led_status_green: led-0 {
++			color = <LED_COLOR_ID_GREEN>;
++			function = LED_FUNCTION_STATUS;
++			gpios = <&tlmm 2 GPIO_ACTIVE_HIGH>;
++		};
++
++		led-1 {
++			color = <LED_COLOR_ID_BLUE>;
++			function = LED_FUNCTION_STATUS;
++			gpios = <&tlmm 3 GPIO_ACTIVE_HIGH>;
++		};
++
++		led_status_red: led-2 {
++			color = <LED_COLOR_ID_RED>;
++			function = LED_FUNCTION_STATUS;
++			gpios = <&tlmm 4 GPIO_ACTIVE_HIGH>;
++		};
++	};
++};
++
++&watchdog {
++	status = "okay";
++};
++
++&prng {
++	status = "okay";
++};
++
++&tlmm {
++	mdio_pins: mdio_pinmux {
++		mux_mdio {
++			pins = "gpio53";
++			function = "mdio";
++			bias-pull-up;
++		};
++
++		mux_mdc {
++			pins = "gpio52";
++			function = "mdc";
++			bias-pull-up;
++		};
++	};
++
++	serial_pins: serial_pinmux {
++		mux {
++			pins = "gpio60", "gpio61";
++			function = "blsp_uart0";
++			bias-disable;
++		};
++	};
++
++	/* Same pad settings as the stock firmware */
++	spi_0_pins: spi_0_pinmux {
++		pinmux {
++			function = "blsp_spi0";
++			pins = "gpio55", "gpio56", "gpio57";
++			drive-strength = <2>;
++			bias-disable;
++		};
++
++		pinmux_cs {
++			function = "gpio";
++			pins = "gpio54";
++			drive-strength = <2>;
++			bias-disable;
++			output-high;
++		};
++
++		pinmux_cs_nand {
++			function = "gpio";
++			pins = "gpio62";
++			drive-strength = <10>;
++			bias-pull-up;
++			output-high;
++		};
++	};
++};
++
++&blsp_dma {
++	status = "okay";
++};
++
++&blsp1_spi1 {
++	status = "okay";
++
++	pinctrl-0 = <&spi_0_pins>;
++	pinctrl-names = "default";
++	cs-gpios = <&tlmm 54 GPIO_ACTIVE_LOW>,
++		   <&tlmm 62 GPIO_ACTIVE_LOW>;
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		spi-max-frequency = <24000000>;
++		reg = <0>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			partition@0 {
++				label = "0:SBL1";
++				reg = <0x00000000 0x00040000>;
++				read-only;
++			};
++
++			partition@40000 {
++				label = "0:MIBIB";
++				reg = <0x00040000 0x00020000>;
++				read-only;
++			};
++
++			partition@60000 {
++				label = "0:QSEE";
++				reg = <0x00060000 0x00060000>;
++				read-only;
++			};
++
++			partition@c0000 {
++				label = "0:CDT";
++				reg = <0x000c0000 0x00010000>;
++				read-only;
++			};
++
++			partition@d0000 {
++				label = "0:DDRPARAMS";
++				reg = <0x000d0000 0x00010000>;
++				read-only;
++			};
++
++			partition@e0000 {
++				label = "0:APPSBLENV";
++				reg = <0x000e0000 0x00010000>;
++			};
++
++			partition@f0000 {
++				label = "0:APPSBL";
++				reg = <0x000f0000 0x00080000>;
++				read-only;
++			};
++
++			partition@170000 {
++				label = "0:ART";
++				reg = <0x00170000 0x00010000>;
++				read-only;
++
++				nvmem-layout {
++					compatible = "fixed-layout";
++					#address-cells = <1>;
++					#size-cells = <1>;
++
++					precal_art_1000: precal@1000 {
++						reg = <0x1000 0x2f20>;
++					};
++
++					precal_art_5000: precal@5000 {
++						reg = <0x5000 0x2f20>;
++					};
++				};
++			};
++
++			partition@180000 {
++				/*
++				 * Lowercase to match the lookup in
++				 * zyxel-bootconfig-ipq
++				 */
++				label = "0:bootconfig";
++				reg = <0x00180000 0x00020000>;
++			};
++
++			partition@1a0000 {
++				label = "0:bootconfig1";
++				reg = <0x001a0000 0x00020000>;
++			};
++
++			partition@1c0000 {
++				label = "0:QSEE_1";
++				reg = <0x001c0000 0x00060000>;
++				read-only;
++			};
++
++			partition@220000 {
++				label = "0:CDT_1";
++				reg = <0x00220000 0x00010000>;
++				read-only;
++			};
++
++			partition@230000 {
++				label = "0:APPSBL_1";
++				reg = <0x00230000 0x00080000>;
++				read-only;
++			};
++
++			partition@2b0000 {
++				label = "mrd";
++				reg = <0x002b0000 0x00010000>;
++
++				nvmem-layout {
++					compatible = "fixed-layout";
++					#address-cells = <1>;
++					#size-cells = <1>;
++
++					macaddr_mrd_fff8: macaddr@fff8 {
++						compatible = "mac-base";
++						reg = <0xfff8 0x6>;
++						#nvmem-cell-cells = <1>;
++					};
++				};
++			};
++
++			partition@2c0000 {
++				label = "mrd_1";
++				reg = <0x002c0000 0x00010000>;
++			};
++
++			partition@2d0000 {
++				label = "db";
++				reg = <0x002d0000 0x00530000>;
++			};
++		};
++	};
++
++	nand@1 {
++		compatible = "spi-nand";
++		reg = <1>;
++		spi-max-frequency = <24000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			partition@0 {
++				label = "rootfs";
++				reg = <0x00000000 0x03400000>;
++				linux,rootfs;
++			};
++
++			partition@3400000 {
++				label = "rootfs_1";
++				reg = <0x03400000 0x03400000>;
++			};
++
++			partition@6800000 {
++				label = "logs";
++				reg = <0x06800000 0x01800000>;
++			};
++		};
++	};
++};
++
++&blsp1_uart1 {
++	status = "okay";
++
++	pinctrl-0 = <&serial_pins>;
++	pinctrl-names = "default";
++};
++
++&gmac {
++	status = "okay";
++	nvmem-cell-names = "mac-address";
++	nvmem-cells = <&macaddr_mrd_fff8 0>;
++};
++
++&switch {
++	status = "okay";
++};
++
++&mdio {
++	status = "okay";
++
++	pinctrl-0 = <&mdio_pins>;
++	pinctrl-names = "default";
++	reset-gpios = <&tlmm 59 GPIO_ACTIVE_LOW>;
++	reset-delay-us = <2000>;
++};
+diff --git a/target/linux/ipq40xx/image/generic.mk b/target/linux/ipq40xx/image/generic.mk
+index 4e155a3b071..edfef390f49 100644
+--- a/target/linux/ipq40xx/image/generic.mk
++++ b/target/linux/ipq40xx/image/generic.mk
+@@ -4,12 +4,22 @@ DEVICE_VARS += RAS_BOARD RAS_ROOTFS_SIZE RAS_VERSION
+ DEVICE_VARS += WRGG_DEVNAME WRGG_SIGNATURE
+ DEVICE_VARS += SUPPORTED_TELTONIKA_DEVICES
+ DEVICE_VARS += SUPPORTED_TELTONIKA_HW_MODS
++DEVICE_VARS += ZYXEL_MODEL_ID
+ 
+ define Build/netgear-fit-padding
+ 	./netgear-fit-padding.py $@ $@.new
+ 	mv $@.new $@
+ endef
+ 
++# Wrap the image in the outer FIT the stock firmware checks against the
++# device model ID before accepting it as a factory image.
++define Build/zyxel-ipq40xx-fit
++	$(TOPDIR)/scripts/mkits-zyxel-fit-filogic.sh \
++		$@.its $@ "$(ZYXEL_MODEL_ID) ff ff ff ff ff ff ff ff"
++	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage -f $@.its $@.new
++	@mv $@.new $@
++endef
++
+ define Device/FitImage
+ 	KERNEL_SUFFIX := -uImage.itb
+ 	KERNEL = kernel-bin | gzip | fit gzip $$(KDIR)/image-$$(DEVICE_DTS).dtb
+@@ -1414,6 +1424,34 @@ define Device/zyxel_nbg6617
+ endef
+ TARGET_DEVICES += zyxel_nbg6617
+ 
++define Device/zyxel_wac500_common
++	$(call Device/FitImage)
++	$(call Device/UbiFit)
++	DEVICE_VENDOR := Zyxel
++	SOC := qcom-ipq4018
++	DEVICE_DTS_CONFIG := config@ap.dk01.1-c2
++	BLOCKSIZE := 128k
++	PAGESIZE := 2048
++	IMAGE_SIZE := 53248k
++	IMAGES += factory.bin
++	IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-ipq40xx-fit
++	DEVICE_PACKAGES := uboot-envtools zyxel-bootconfig-ipq
++endef
++
++define Device/zyxel_nwa1123acv3
++	$(call Device/zyxel_wac500_common)
++	DEVICE_MODEL := NWA1123ACv3
++	ZYXEL_MODEL_ID := 62 e1
++endef
++TARGET_DEVICES += zyxel_nwa1123acv3
++
++define Device/zyxel_wac500
++	$(call Device/zyxel_wac500_common)
++	DEVICE_MODEL := WAC500
++	ZYXEL_MODEL_ID := 63 e1
++endef
++TARGET_DEVICES += zyxel_wac500
++
+ define Device/zyxel_wre6606
+ 	$(call Device/FitImage)
+ 	DEVICE_VENDOR := Zyxel

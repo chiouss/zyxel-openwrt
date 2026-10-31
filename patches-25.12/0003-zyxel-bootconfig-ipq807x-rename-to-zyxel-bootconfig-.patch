@@ -1,0 +1,112 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Wed, 30 Sep 2026 08:44:12 +0800
+Subject: [PATCH] zyxel-bootconfig-ipq807x: rename to zyxel-bootconfig-ipq
+
+The "0:bootconfig"/"0:bootconfig1" dual-image mechanism handled by this
+package is not specific to ipq807x. The Zyxel firmware implements dual
+image in three flavours: one for the old AR93xx/AR95xx and BCM47xx based
+devices, one shared by all Qualcomm IPQ based access points (ipq40xx,
+ipq50xx, ipq807x, ...) and one for ramips and mt798x, which is already
+covered by the zyxel-bootconfig package.
+
+Rename the package to zyxel-bootconfig-ipq, so other IPQ targets can use
+it without shipping a duplicate package, and update the NWA110AX and
+NWA210AX DEVICE_PACKAGES accordingly. No functional change.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ .../Makefile                                     | 16 ++++++++--------
+ .../files/95_apply_bootconfig                    |  4 ++--
+ .../files/zyxel-bootconfig-ipq}                  |  0
+ target/linux/qualcommax/image/ipq807x.mk         |  2 +-
+ 4 files changed, 11 insertions(+), 11 deletions(-)
+ rename package/utils/{zyxel-bootconfig-ipq807x => zyxel-bootconfig-ipq}/Makefile (65%)
+ rename package/utils/{zyxel-bootconfig-ipq807x => zyxel-bootconfig-ipq}/files/95_apply_bootconfig (52%)
+ rename package/utils/{zyxel-bootconfig-ipq807x/files/zyxel-bootconfig-ipq807x => zyxel-bootconfig-ipq/files/zyxel-bootconfig-ipq} (100%)
+
+diff --git a/package/utils/zyxel-bootconfig-ipq807x/Makefile b/package/utils/zyxel-bootconfig-ipq/Makefile
+similarity index 65%
+rename from package/utils/zyxel-bootconfig-ipq807x/Makefile
+rename to package/utils/zyxel-bootconfig-ipq/Makefile
+index b624a13b09b..f7675b2793a 100644
+--- a/package/utils/zyxel-bootconfig-ipq807x/Makefile
++++ b/package/utils/zyxel-bootconfig-ipq/Makefile
+@@ -8,22 +8,22 @@
+ 
+ include $(TOPDIR)/rules.mk
+ 
+-PKG_NAME:=zyxel-bootconfig-ipq807x
++PKG_NAME:=zyxel-bootconfig-ipq
+ PKG_RELEASE:=1
+ PKG_FLAGS:=nonshared
+ 
+ include $(INCLUDE_DIR)/package.mk
+ 
+-define Package/zyxel-bootconfig-ipq807x
++define Package/zyxel-bootconfig-ipq
+ 	SECTION:=utils
+ 	CATEGORY:=Base system
+-	TITLE:=Utility for handling Zyxel bootconfig settings on ipq807x devices
++	TITLE:=Utility for handling Zyxel bootconfig settings on Qualcomm IPQ devices
+ 	MAINTAINER:=Pascal Beleiu <pascal@beleiu.de>
+ 	DEPENDS:=@TARGET_qualcommax_ipq807x
+ endef
+ 
+-define Package/zyxel-bootconfig-ipq807x/description
+-	This package contains an utility for handling Zyxel bootconfig settings on ipq807x devices.
++define Package/zyxel-bootconfig-ipq/description
++	This package contains an utility for handling Zyxel bootconfig settings on Qualcomm IPQ devices.
+ endef
+ 
+ define Build/Prepare
+@@ -35,10 +35,10 @@ endef
+ define Build/Compile
+ endef
+ 
+-define Package/zyxel-bootconfig-ipq807x/install
++define Package/zyxel-bootconfig-ipq/install
+ 	$(INSTALL_DIR) $(1)/usr/bin $(1)/lib/preinit
+-	$(INSTALL_BIN) ./files/zyxel-bootconfig-ipq807x $(1)/usr/bin/
++	$(INSTALL_BIN) ./files/zyxel-bootconfig-ipq $(1)/usr/bin/
+ 	$(CP) ./files/95_apply_bootconfig $(1)/lib/preinit/95_apply_bootconfig
+ endef
+ 
+-$(eval $(call BuildPackage,zyxel-bootconfig-ipq807x))
++$(eval $(call BuildPackage,zyxel-bootconfig-ipq))
+diff --git a/package/utils/zyxel-bootconfig-ipq807x/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
+similarity index 52%
+rename from package/utils/zyxel-bootconfig-ipq807x/files/95_apply_bootconfig
+rename to package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
+index 03c833b9516..0c7c2b49f50 100644
+--- a/package/utils/zyxel-bootconfig-ipq807x/files/95_apply_bootconfig
++++ b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
+@@ -3,8 +3,8 @@ apply_bootconfig() {
+ 
+ 	case $(board_name) in
+ 	zyxel,nwa210ax)
+-		status="$(zyxel-bootconfig-ipq807x show | awk '/image0:/ {print $2}')"
+-		[ "$status" != "selected" ] && zyxel-bootconfig-ipq807x --force set image0
++		status="$(zyxel-bootconfig-ipq show | awk '/image0:/ {print $2}')"
++		[ "$status" != "selected" ] && zyxel-bootconfig-ipq --force set image0
+ 		;;
+ 	esac
+ }
+diff --git a/package/utils/zyxel-bootconfig-ipq807x/files/zyxel-bootconfig-ipq807x b/package/utils/zyxel-bootconfig-ipq/files/zyxel-bootconfig-ipq
+similarity index 100%
+rename from package/utils/zyxel-bootconfig-ipq807x/files/zyxel-bootconfig-ipq807x
+rename to package/utils/zyxel-bootconfig-ipq/files/zyxel-bootconfig-ipq
+diff --git a/target/linux/qualcommax/image/ipq807x.mk b/target/linux/qualcommax/image/ipq807x.mk
+index f356bbbca52..15ab3f47361 100644
+--- a/target/linux/qualcommax/image/ipq807x.mk
++++ b/target/linux/qualcommax/image/ipq807x.mk
+@@ -556,7 +556,7 @@ define Device/zyxel_nwa210ax
+ 	DEVICE_MODEL := NWA210AX
+ 	DEVICE_DTS_CONFIG := config@ac02
+ 	SOC := ipq8071
+-	DEVICE_PACKAGES := ipq-wifi-zyxel_nwa210ax zyxel-bootconfig-ipq807x kmod-leds-lp5562
++	DEVICE_PACKAGES := ipq-wifi-zyxel_nwa210ax zyxel-bootconfig-ipq kmod-leds-lp5562
+ 	BLOCKSIZE := 128k
+ 	PAGESIZE := 2048
+ 	IMAGE_SIZE := 61440k

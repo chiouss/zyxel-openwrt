@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Wed, 30 Sep 2026 08:44:28 +0800
+Subject: [PATCH] zyxel-bootconfig-ipq: add ipq40xx support
+
+Zyxel ipq40xx devices use the same dual-image "0:bootconfig"/
+"0:bootconfig1" mechanism as the ipq807x based NWA110AX/NWA210AX.
+Broaden the package DEPENDS to cover ipq40xx ahead of adding ipq40xx
+devices that need it.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ package/utils/zyxel-bootconfig-ipq/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/package/utils/zyxel-bootconfig-ipq/Makefile b/package/utils/zyxel-bootconfig-ipq/Makefile
+index f7675b2793a..7dd64de8624 100644
+--- a/package/utils/zyxel-bootconfig-ipq/Makefile
++++ b/package/utils/zyxel-bootconfig-ipq/Makefile
+@@ -19,7 +19,7 @@ define Package/zyxel-bootconfig-ipq
+ 	CATEGORY:=Base system
+ 	TITLE:=Utility for handling Zyxel bootconfig settings on Qualcomm IPQ devices
+ 	MAINTAINER:=Pascal Beleiu <pascal@beleiu.de>
+-	DEPENDS:=@TARGET_qualcommax_ipq807x
++	DEPENDS:=@(TARGET_qualcommax_ipq807x||TARGET_ipq40xx)
+ endef
+ 
+ define Package/zyxel-bootconfig-ipq/description

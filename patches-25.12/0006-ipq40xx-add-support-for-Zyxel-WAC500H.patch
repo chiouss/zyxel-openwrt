@@ -1,0 +1,251 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Thu, 24 Sep 2026 13:16:13 +0000
+Subject: [PATCH] ipq40xx: add support for Zyxel WAC500H
+
+The Zyxel WAC500H is an 802.11ac access point based on the same
+AP-DK01.1-C2 platform as the NWA1123ACv3/WAC500. It shares their flash
+layout, LEDs, reset button and console, but has three Ethernet ports
+and uses its own model ID ("64 e1").
+
+The common hardware comes from qcom-ipq4018-zyxel-wac500.dtsi, shared
+with the NWA1123ACv3 and WAC500.
+
+Hardware
+--------
+SoC:    Qualcomm IPQ4018
+RAM:    256M
+FLASH:  8M SPI-NOR (Macronix MX25L6405D)
+        128M SPI-NAND (Winbond W25N01GV)
+ETH:    3x Gigabit Ethernet
+        - Uplink (PoE-in)
+        - LAN1 (PoE-out passthrough, ~7W, only when powered by 802.3at;
+          hardware-controlled)
+        - LAN2
+WiFi:   Qualcomm IPQ4018 (2.4/5GHz 802.11ac 2x2)
+BTN:    1x Reset
+LED:    1x Multi-Color (RGB)
+Power:  802.3af/at PoE or 12V DC
+
+All three ports are bridged into "lan", matching the stock default
+configuration.
+
+The SPI pins use the stock firmware pad settings from the shared dtsi.
+With the 12mA drive strength used by most ipq40xx boards, SPI-NAND
+transfers time out on this board and the rootfs UBI volume fails to
+attach.
+
+UART Console
+------------
+Externally accessible on the "CONSOLE" header.
+
+Settings: 3.3V TTL, 115200 8N1
+
+Layout: GND TX RX 3.3V (don't connect, marked with a triangle)
+
+Installation Web-UI
+-------------------
+The device uses a dual-image setup and OpenWrt can only be installed as
+image 0. When the currently running stock firmware is image 0, OpenWrt
+will be installed as image 1, fail to boot and the device returns to
+stock firmware. If this happens, install any version of stock firmware
+so that it runs as image 1, before installing OpenWrt. Alternatively, if
+there already is a valid stock firmware in image 1, the "debug
+dual-image show" and "debug dual-image set boot-image image1" commands
+can be used in the stock CLI via serial/SSH/telnet to switch to image 1.
+
+ * Rename the OpenWrt factory image to a shorter name, for example
+   "openwrt.bin" (the stock firmware has a character limit)
+ * In the web interface, go to "Maintenance" -> "File Manager" ->
+   "Firmware Package" (or click the link next to "Firmware Version"
+   under "Device Information" on the dashboard)
+ * Under "Upload File" browse to the renamed OpenWrt factory image and
+   click on "Upload"
+
+The factory image is a UBI image wrapped in an outer FIT carrying the
+device model ID ("64 e1"), which the stock firmware checks before
+accepting it. On first boot, zyxel-bootconfig marks the OpenWrt image
+as the selected one so the bootloader keeps booting it.
+
+Switch Boot Image
+-----------------
+OpenWrt to stock: "zyxel-bootconfig-ipq set image1"
+Stock to OpenWrt: "debug dual-image set boot-image image0"
+
+Unbrick / Revert to Stock with the Boot Module
+----------------------------------------------
+ * Disconnect the device from power
+ * Configure your machine to 192.168.1.103/24 and start a TFTP server
+ * Put the stock firmware image into the TFTP server root and rename it
+   to "ZLD-current"
+ * Establish a serial connection to the device through the console port
+ * Connect the device to power
+ * When prompted, press a key to abort automatic boot and enter debug
+   mode
+ * Use the "atnz" command to flash the firmware image
+ * Use the "atgo" command to boot from the newly flashed image
+
+MAC addresses
+-------------
+Uplink: base MAC (mrd partition, offset 0xfff8)
+LAN1:   base MAC + 1
+LAN2:   base MAC + 2
+2.4GHz: base MAC + 3
+5GHz:   base MAC + 4
+
+WiFi board data
+---------------
+The radios report bmi-board-id 20 (2.4GHz) and 21 (5GHz) and use the
+calibration variant "Zyxel-WAC500H".
+Device-specific board data is not in the ath10k board file collection
+yet, so ath10k falls back to the generic
+bus=ahb,bmi-chip-id=0,bmi-board-id=20/21 entries of
+ath10k-board-qca4019. The board data will be submitted separately.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ .../uboot-tools/uboot-envtools/files/ipq40xx  |  3 +-
+ .../files/95_apply_bootconfig                 |  3 +-
+ .../ipq40xx/base-files/etc/board.d/02_network |  3 ++
+ .../base-files/lib/upgrade/platform.sh        |  3 +-
+ .../boot/dts/qcom/qcom-ipq4018-wac500h.dts    | 54 +++++++++++++++++++
+ target/linux/ipq40xx/image/generic.mk         |  7 +++
+ 6 files changed, 70 insertions(+), 3 deletions(-)
+ create mode 100644 target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500h.dts
+
+diff --git a/package/boot/uboot-tools/uboot-envtools/files/ipq40xx b/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
+index 465f84ac018..600458848a9 100644
+--- a/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
++++ b/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
+@@ -27,7 +27,8 @@ pakedge,wr-1|\
+ plasmacloud,pa1200|\
+ plasmacloud,pa2200|\
+ zyxel,nwa1123acv3|\
+-zyxel,wac500)
++zyxel,wac500|\
++zyxel,wac500h)
+ 	ubootenv_add_uci_config "/dev/mtd5" "0x0" "0x10000" "0x10000"
+ 	;;
+ aruba,ap-303)
+diff --git a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
+index 7fdf0ebff6e..5b428855780 100644
+--- a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
++++ b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
+@@ -4,7 +4,8 @@ apply_bootconfig() {
+ 	case $(board_name) in
+ 	zyxel,nwa210ax|\
+ 	zyxel,nwa1123acv3|\
+-	zyxel,wac500)
++	zyxel,wac500|\
++	zyxel,wac500h)
+ 		status="$(zyxel-bootconfig-ipq show | awk '/image0:/ {print $2}')"
+ 		[ "$status" != "selected" ] && zyxel-bootconfig-ipq --force set image0
+ 		;;
+diff --git a/target/linux/ipq40xx/base-files/etc/board.d/02_network b/target/linux/ipq40xx/base-files/etc/board.d/02_network
+index 12bf3e4f52e..edad47090eb 100644
+--- a/target/linux/ipq40xx/base-files/etc/board.d/02_network
++++ b/target/linux/ipq40xx/base-files/etc/board.d/02_network
+@@ -146,6 +146,9 @@ ipq40xx_setup_interfaces()
+ 		ucidef_set_interface_lan "lan1 lan2 lan3 lan4"
+ 		ucidef_set_interface "wan" device "/dev/cdc-wdm0" protocol "qmi"
+ 		;;
++	zyxel,wac500h)
++		ucidef_set_interface_lan "uplink lan1 lan2"
++		;;
+ 	*)
+ 		echo "Unsupported hardware. Network interfaces not initialized"
+ 		;;
+diff --git a/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh b/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
+index b6010e0111d..ea7bb898319 100644
+--- a/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
++++ b/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
+@@ -131,7 +131,8 @@ platform_do_upgrade() {
+ 	qxwlan,e2600ac-c2|\
+ 	wallys,dr40x9|\
+ 	zyxel,nwa1123acv3|\
+-	zyxel,wac500)
++	zyxel,wac500|\
++	zyxel,wac500h)
+ 		nand_do_upgrade "$1"
+ 		;;
+ 	alfa-network,ap120c-ac)
+diff --git a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500h.dts b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500h.dts
+new file mode 100644
+index 00000000000..17d6e4cb4de
+--- /dev/null
++++ b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500h.dts
+@@ -0,0 +1,54 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++#include "qcom-ipq4018-zyxel-wac500.dtsi"
++
++/ {
++	model = "Zyxel WAC500H";
++	compatible = "zyxel,wac500h";
++
++	aliases {
++		led-boot = &led_status_green;
++		led-failsafe = &led_status_red;
++		led-running = &led_status_green;
++		led-upgrade = &led_status_red;
++		label-mac-device = &swport4;
++	};
++};
++
++&swport4 {
++	status = "okay";
++
++	label = "uplink";
++	nvmem-cell-names = "mac-address";
++	nvmem-cells = <&macaddr_mrd_fff8 0>;
++};
++
++&swport3 {
++	status = "okay";
++
++	label = "lan1";
++	nvmem-cell-names = "mac-address";
++	nvmem-cells = <&macaddr_mrd_fff8 1>;
++};
++
++&swport2 {
++	status = "okay";
++
++	label = "lan2";
++	nvmem-cell-names = "mac-address";
++	nvmem-cells = <&macaddr_mrd_fff8 2>;
++};
++
++&wifi0 {
++	status = "okay";
++	nvmem-cell-names = "pre-calibration", "mac-address";
++	nvmem-cells = <&precal_art_1000>, <&macaddr_mrd_fff8 3>;
++	qcom,ath10k-calibration-variant = "Zyxel-WAC500H";
++};
++
++&wifi1 {
++	status = "okay";
++	nvmem-cell-names = "pre-calibration", "mac-address";
++	nvmem-cells = <&precal_art_5000>, <&macaddr_mrd_fff8 4>;
++	qcom,ath10k-calibration-variant = "Zyxel-WAC500H";
++};
+diff --git a/target/linux/ipq40xx/image/generic.mk b/target/linux/ipq40xx/image/generic.mk
+index edfef390f49..a87d94812e1 100644
+--- a/target/linux/ipq40xx/image/generic.mk
++++ b/target/linux/ipq40xx/image/generic.mk
+@@ -1452,6 +1452,13 @@ define Device/zyxel_wac500
+ endef
+ TARGET_DEVICES += zyxel_wac500
+ 
++define Device/zyxel_wac500h
++	$(call Device/zyxel_wac500_common)
++	DEVICE_MODEL := WAC500H
++	ZYXEL_MODEL_ID := 64 e1
++endef
++TARGET_DEVICES += zyxel_wac500h
++
+ define Device/zyxel_wre6606
+ 	$(call Device/FitImage)
+ 	DEVICE_VENDOR := Zyxel

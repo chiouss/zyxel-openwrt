@@ -1,0 +1,10 @@
+---
+profile: zyxel_nwa1123acv3
+target: ipq40xx
+subtarget: generic
+description: Build image for the Zyxel NWA1123ACv3
+include:
+  - luci
+  - zyxel-feed
+packages:
+  - ipq-wifi-zyxel_nwa1123acv3

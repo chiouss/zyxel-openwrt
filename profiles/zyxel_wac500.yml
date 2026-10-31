@@ -1,0 +1,10 @@
+---
+profile: zyxel_wac500
+target: ipq40xx
+subtarget: generic
+description: Build image for the Zyxel WAC500
+include:
+  - luci
+  - zyxel-feed
+packages:
+  - ipq-wifi-zyxel_nwa1123acv3

@@ -1,0 +1,5 @@
+---
+description: Zyxel overlay feed (packages not yet available in OpenWrt 25.12)
+feeds:
+  - name: zyxel
+    path: ../../feeds/zyxel

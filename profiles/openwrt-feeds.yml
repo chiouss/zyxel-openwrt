@@ -1,0 +1,12 @@
+---
+description: Standard OpenWrt feeds, pinned to the revisions in v25.12.6 feeds.conf.default
+feeds:
+  - name: packages
+    uri: https://git.openwrt.org/feed/packages.git
+    revision: 093d551675b1119a06ef224d419905e8d6b2af1a
+  - name: luci
+    uri: https://git.openwrt.org/project/luci.git
+    revision: 75a306df84a020c57a631ef5b4c02ace56d93387
+  - name: routing
+    uri: https://git.openwrt.org/feed/routing.git
+    revision: 48c808034414a2112cf9d5261a20a320e8d0d170
