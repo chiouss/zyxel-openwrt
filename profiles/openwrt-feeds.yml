@@ -1,5 +1,5 @@
 ---
-description: Standard OpenWrt feeds, pinned to the revisions in v25.12.6 feeds.conf.default
+description: Standard OpenWrt feeds (GitHub mirrors), pinned to the revisions in v25.12.6 feeds.buildinfo
 feeds:
   - name: packages
     uri: https://github.com/openwrt/packages.git
@@ -10,3 +10,9 @@ feeds:
   - name: routing
     uri: https://github.com/openwrt/routing.git
     revision: 48c808034414a2112cf9d5261a20a320e8d0d170
+  - name: telephony
+    uri: https://github.com/openwrt/telephony.git
+    revision: 2618106d5846a4a542fdf5809f0d3ed228ce439b
+  - name: video
+    uri: https://github.com/openwrt/video.git
+    revision: 094bf58da6682f895255a35a84349a79dab4bf95

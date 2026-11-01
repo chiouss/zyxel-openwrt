@@ -1,0 +1,77 @@
+---
+description: Same configuration as the official OpenWrt 25.12.6 release images
+include:
+  - openwrt-feeds
+# Taken from the release's config.buildinfo, which is identical for all
+# targets apart from the target selection. Options that only add build
+# outputs (SDK, ImageBuilder, toolchain, SBOM, all target packages) or
+# select multiple devices are left out. ALL_KMODS, the kernel options and
+# all five feeds must stay: they decide the kernel vermagic, and with
+# BUILDBOT the image points apk at the release's kmods repository for it.
+diffconfig: |
+  CONFIG_ALL_KMODS=y
+  # CONFIG_ALL_NONSHARED is not set
+  CONFIG_DEVEL=y
+  CONFIG_BUILDBOT=y
+  CONFIG_COLLECT_KERNEL_DEBUG=y
+  # CONFIG_IB is not set
+  CONFIG_IMAGEOPT=y
+  # CONFIG_JSON_CYCLONEDX_SBOM is not set
+  CONFIG_KERNEL_BUILD_DOMAIN="buildhost"
+  CONFIG_KERNEL_BUILD_USER="builder"
+  # CONFIG_KERNEL_KALLSYMS is not set
+  # CONFIG_MAKE_TOOLCHAIN is not set
+  CONFIG_REPRODUCIBLE_DEBUG_INFO=y
+  # CONFIG_SDK is not set
+  # CONFIG_SDK_LLVM_BPF is not set
+  CONFIG_VERSIONOPT=y
+  CONFIG_VERSION_BUG_URL=""
+  CONFIG_VERSION_CODE=""
+  CONFIG_VERSION_DIST="OpenWrt"
+  CONFIG_VERSION_FILENAMES=y
+  CONFIG_VERSION_FIRMWARE_URL=""
+  CONFIG_VERSION_HOME_URL=""
+  CONFIG_VERSION_HWREV=""
+  CONFIG_VERSION_MANUFACTURER=""
+  CONFIG_VERSION_MANUFACTURER_URL=""
+  CONFIG_VERSION_NUMBER=""
+  CONFIG_VERSION_PRODUCT=""
+  CONFIG_VERSION_REPO="https://downloads.openwrt.org/releases/25.12.6"
+  CONFIG_VERSION_SUPPORT_URL=""
+packages:
+  - attendedsysupgrade-common
+  - cgi-io
+  - libiwinfo
+  - libiwinfo-data
+  - liblucihttp
+  - liblucihttp-ucode
+  - luci
+  - luci-app-attendedsysupgrade
+  - luci-app-firewall
+  - luci-app-package-manager
+  - luci-base
+  - luci-lib-uqr
+  - luci-light
+  - luci-mod-admin-full
+  - luci-mod-network
+  - luci-mod-status
+  - luci-mod-system
+  - luci-proto-ipv6
+  - luci-proto-ppp
+  - luci-ssl
+  - luci-theme-bootstrap
+  - owut
+  - px5g-mbedtls
+  - rpcd
+  - rpcd-mod-file
+  - rpcd-mod-iwinfo
+  - rpcd-mod-luci
+  - rpcd-mod-rpcsys
+  - rpcd-mod-rrdns
+  - rpcd-mod-ucode
+  - ucode-mod-html
+  - ucode-mod-log
+  - ucode-mod-math
+  - ucode-mod-uclient
+  - uhttpd
+  - uhttpd-mod-ubus

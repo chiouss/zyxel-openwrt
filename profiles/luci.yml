@@ -1,6 +1,0 @@
----
-description: LuCI web interface
-include:
-  - openwrt-feeds
-packages:
-  - luci

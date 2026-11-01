@@ -4,4 +4,4 @@ target: mediatek
 subtarget: filogic
 description: Build image for the Zyxel WAX300H
 include:
-  - luci
+  - release
