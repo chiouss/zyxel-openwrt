@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Sun, 1 Nov 2026 14:01:53 +0800
+Subject: [PATCH] image: add a common Zyxel FIT factory image recipe
+
+The stock firmware of the Zyxel MT7981B and IPQ40xx based access points
+accepts the same factory image: a UBI image wrapped in an outer FIT
+whose "compat-models" property lists up to five two-byte model IDs.
+
+Add zyxel-fit-factory-img to include/image-commands.mk. It takes the
+model IDs from the ZYXEL_MODEL_ID_0 to ZYXEL_MODEL_ID_4 device
+variables, in that order, and fills the unset ones with "ff ff".
+Targets using it add these variables to DEVICE_VARS and clear them in
+their common device definitions, as device variables are not reset
+between devices.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ include/image-commands.mk | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/include/image-commands.mk b/include/image-commands.mk
+index e278cf1b19..46528464ec 100644
+--- a/include/image-commands.mk
++++ b/include/image-commands.mk
+@@ -863,6 +863,16 @@ define Build/zyimage
+ 	$(STAGING_DIR_HOST)/bin/zyimage $(1) $@
+ endef
+ 
++# Wrap the image in the outer FIT the Zyxel stock firmware checks before
++# accepting it as a factory image. It carries up to five two-byte model IDs
++# (ZYXEL_MODEL_ID_0 to ZYXEL_MODEL_ID_4), unused slots are filled with ff ff.
++define Build/zyxel-fit-factory-img
++	$(TOPDIR)/scripts/mkits-zyxel-fit-filogic.sh \
++		$@.its $@ "$(foreach i,0 1 2 3 4,$(or $(ZYXEL_MODEL_ID_$(i)),ff ff))"
++	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage -f $@.its $@.new
++	@mv $@.new $@
++endef
++
+ define Build/zyxel-ras-image
+ 	let \
+ 		newsize="$(call exp_units,$(RAS_ROOTFS_SIZE))"; \

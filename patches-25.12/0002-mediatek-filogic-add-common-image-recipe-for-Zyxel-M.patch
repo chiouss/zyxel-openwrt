@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Mark Chiou <chiouss@gmail.com>
-Date: Wed, 30 Sep 2026 19:50:46 +0800
+Date: Sun, 1 Nov 2026 14:02:01 +0800
 Subject: [PATCH] mediatek: filogic: add common image recipe for Zyxel MT7981B
  devices
 
@@ -8,22 +8,21 @@ Move the NWA50AX Pro image settings into Device/zyxel_filogic_common,
 so other Zyxel MT7981B access points with the same flash layout and
 factory image format can reuse them.
 
-Rename Build/zyxel-nwa-fit-filogic to Build/zyxel-fit-filogic, after
-the script it calls, as it is not specific to the NWA series. It had
-the model IDs of the factory image's "compat-models" list hardcoded.
-Take them from the ZYXEL_MODEL_ID_0 to ZYXEL_MODEL_ID_4 device
-variables instead, in that order, and fill the unset ones with "ff ff".
-The common recipe clears all five, as device variables are not reset
-between devices. The NWA50AX Pro factory image is unchanged.
+Replace Build/zyxel-nwa-fit-filogic, which had the model IDs of the
+factory image's "compat-models" list hardcoded, with the common
+zyxel-fit-factory-img recipe and set the NWA50AX Pro model IDs with
+ZYXEL_MODEL_ID_0 and ZYXEL_MODEL_ID_1. The common device definition
+clears all five, as device variables are not reset between devices.
+The NWA50AX Pro factory image is unchanged.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Signed-off-by: Mark Chiou <chiouss@gmail.com>
 ---
- target/linux/mediatek/image/filogic.mk | 29 +++++++++++++++++++-------
- 1 file changed, 21 insertions(+), 8 deletions(-)
+ target/linux/mediatek/image/filogic.mk | 32 +++++++++++++++-----------
+ 1 file changed, 19 insertions(+), 13 deletions(-)
 
 diff --git a/target/linux/mediatek/image/filogic.mk b/target/linux/mediatek/image/filogic.mk
-index 1696036692b..2a6d5df210d 100644
+index 1696036692..9fa3fcb657 100644
 --- a/target/linux/mediatek/image/filogic.mk
 +++ b/target/linux/mediatek/image/filogic.mk
 @@ -1,6 +1,8 @@
@@ -35,19 +34,21 @@ index 1696036692b..2a6d5df210d 100644
  
  define Image/Prepare
  	# For UBI we want only one extra block
-@@ -117,9 +119,9 @@ define Build/mstc-header
+@@ -117,13 +119,6 @@ define Build/mstc-header
    mv $@.new $@
  endef
  
 -define Build/zyxel-nwa-fit-filogic
-+define Build/zyxel-fit-filogic
- 	$(TOPDIR)/scripts/mkits-zyxel-fit-filogic.sh \
+-	$(TOPDIR)/scripts/mkits-zyxel-fit-filogic.sh \
 -		$@.its $@ "80 e1 81 e1 ff ff ff ff ff ff"
-+		$@.its $@ "$(foreach i,0 1 2 3 4,$(or $(ZYXEL_MODEL_ID_$(i)),ff ff))"
- 	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage -f $@.its $@.new
- 	@mv $@.new $@
- endef
-@@ -3863,12 +3865,8 @@ define Device/zyxel_ex5700-telenor
+-	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage -f $@.its $@.new
+-	@mv $@.new $@
+-endef
+-
+ define Build/cetron-header
+ 	$(eval magic=$(word 1,$(1)))
+ 	$(eval model=$(word 2,$(1)))
+@@ -3863,12 +3858,8 @@ define Device/zyxel_ex5700-telenor
  endef
  TARGET_DEVICES += zyxel_ex5700-telenor
  
@@ -61,12 +62,12 @@ index 1696036692b..2a6d5df210d 100644
    DEVICE_DTS_DIR := ../dts
    DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware zyxel-bootconfig
    DEVICE_DTS_LOADADDR := 0x44000000
-@@ -3878,8 +3876,23 @@ define Device/zyxel_nwa50ax-pro
+@@ -3878,8 +3869,23 @@ define Device/zyxel_nwa50ax-pro
    IMAGE_SIZE := 51200k
    KERNEL_IN_UBI := 1
    IMAGES += factory.bin
 -  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-nwa-fit-filogic
-+  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-fit-filogic
++  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-fit-factory-img
    IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 +  ZYXEL_MODEL_ID_0 :=
 +  ZYXEL_MODEL_ID_1 :=

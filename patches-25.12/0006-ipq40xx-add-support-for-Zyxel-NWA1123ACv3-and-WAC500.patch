@@ -6,9 +6,9 @@ Subject: [PATCH] ipq40xx: add support for Zyxel NWA1123ACv3 and WAC500
 The Zyxel NWA1123ACv3 is a ceiling-mount 802.11ac access point based on
 the Qualcomm AP-DK01.1-C2 reference design. The Zyxel WAC500 is
 electrically identical and differs only in the model ID stored in the
-"mrd" partition, so both devices share qcom-ipq4018-nwa1123acv3.dtsi
-(on top of the platform-wide qcom-ipq4018-zyxel-wac500.dtsi) and their
-DTS files only set the model and compatible.
+"mrd" partition, so both use the same image, which lists the WAC500 as
+an alternative model. The DTS builds on qcom-ipq4018-zyxel-wac500.dtsi,
+which holds the hardware shared by the Zyxel IPQ4018 access points.
 
 Hardware
 --------
@@ -53,11 +53,12 @@ can be used in the stock CLI via serial/SSH/telnet to switch to image 1.
  * Under "Upload File" browse to the renamed OpenWrt factory image and
    click on "Upload"
 
-The factory image is a UBI image wrapped in an outer FIT carrying the
-device model ID ("62 e1" for NWA1123ACv3, "63 e1" for WAC500), which the
-stock firmware checks before accepting it. On first boot,
-zyxel-bootconfig marks the OpenWrt image as the selected one so the
-bootloader keeps booting it.
+The factory image is a UBI image wrapped in an outer FIT listing the
+model IDs of both devices ("62 e1" for NWA1123ACv3, "63 e1" for
+WAC500), which the stock firmware checks before accepting it. The common
+device definition clears the model IDs, as device variables are not
+reset between devices. On first boot, zyxel-bootconfig marks the
+OpenWrt image as the selected one so the bootloader keeps booting it.
 
 Switch Boot Image
 -----------------
@@ -93,106 +94,87 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Signed-off-by: Mark Chiou <chiouss@gmail.com>
 ---
- .../uboot-tools/uboot-envtools/files/ipq40xx  |   4 +-
- .../files/95_apply_bootconfig                 |   4 +-
- .../ipq40xx/base-files/etc/board.d/02_network |   4 +-
- .../base-files/lib/upgrade/platform.sh        |   4 +-
- .../dts/qcom/qcom-ipq4018-nwa1123acv3.dts     |   8 +
- .../dts/qcom/qcom-ipq4018-nwa1123acv3.dtsi    |  35 ++
- .../arm/boot/dts/qcom/qcom-ipq4018-wac500.dts |   8 +
+ .../uboot-tools/uboot-envtools/files/ipq40xx  |   3 +-
+ .../files/95_apply_bootconfig                 |   3 +-
+ .../ipq40xx/base-files/etc/board.d/02_network |   3 +-
+ .../base-files/lib/upgrade/platform.sh        |   3 +-
+ .../dts/qcom/qcom-ipq4018-nwa1123acv3.dts     |  38 ++
  .../dts/qcom/qcom-ipq4018-zyxel-wac500.dtsi   | 329 ++++++++++++++++++
- target/linux/ipq40xx/image/generic.mk         |  38 ++
- 9 files changed, 430 insertions(+), 4 deletions(-)
+ target/linux/ipq40xx/image/generic.mk         |  31 ++
+ 7 files changed, 406 insertions(+), 4 deletions(-)
  create mode 100644 target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dts
- create mode 100644 target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dtsi
- create mode 100644 target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500.dts
  create mode 100644 target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-zyxel-wac500.dtsi
 
 diff --git a/package/boot/uboot-tools/uboot-envtools/files/ipq40xx b/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
-index fc0ac333349..465f84ac018 100644
+index fc0ac33334..869f5ffc6b 100644
 --- a/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
 +++ b/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
-@@ -25,7 +25,9 @@ openmesh,a42|\
+@@ -25,7 +25,8 @@ openmesh,a42|\
  openmesh,a62|\
  pakedge,wr-1|\
  plasmacloud,pa1200|\
 -plasmacloud,pa2200)
 +plasmacloud,pa2200|\
-+zyxel,nwa1123acv3|\
-+zyxel,wac500)
++zyxel,nwa1123acv3)
  	ubootenv_add_uci_config "/dev/mtd5" "0x0" "0x10000" "0x10000"
  	;;
  aruba,ap-303)
 diff --git a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
-index 0c7c2b49f50..7fdf0ebff6e 100644
+index 0c7c2b49f5..533bdd6d2b 100644
 --- a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
 +++ b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
-@@ -2,7 +2,9 @@ apply_bootconfig() {
+@@ -2,7 +2,8 @@ apply_bootconfig() {
  	. /lib/functions.sh
  
  	case $(board_name) in
 -	zyxel,nwa210ax)
 +	zyxel,nwa210ax|\
-+	zyxel,nwa1123acv3|\
-+	zyxel,wac500)
++	zyxel,nwa1123acv3)
  		status="$(zyxel-bootconfig-ipq show | awk '/image0:/ {print $2}')"
  		[ "$status" != "selected" ] && zyxel-bootconfig-ipq --force set image0
  		;;
 diff --git a/target/linux/ipq40xx/base-files/etc/board.d/02_network b/target/linux/ipq40xx/base-files/etc/board.d/02_network
-index 525e4d81867..12bf3e4f52e 100644
+index 525e4d8186..46c69c1200 100644
 --- a/target/linux/ipq40xx/base-files/etc/board.d/02_network
 +++ b/target/linux/ipq40xx/base-files/etc/board.d/02_network
-@@ -64,7 +64,9 @@ ipq40xx_setup_interfaces()
+@@ -64,7 +64,8 @@ ipq40xx_setup_interfaces()
  	mikrotik,sxtsq-5-ac|\
  	netgear,ex6100v2|\
  	netgear,ex6150v2|\
 -	zte,mf282plus)
 +	zte,mf282plus|\
-+	zyxel,nwa1123acv3|\
-+	zyxel,wac500)
++	zyxel,nwa1123acv3)
  		ucidef_set_interface_lan "lan"
  		;;
  	aruba,ap-303h|\
 diff --git a/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh b/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
-index 28e11d9070e..b6010e0111d 100644
+index 28e11d9070..c1043ee931 100644
 --- a/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
 +++ b/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
-@@ -129,7 +129,9 @@ platform_do_upgrade() {
+@@ -129,7 +129,8 @@ platform_do_upgrade() {
  	p2w,r619ac-64m|\
  	p2w,r619ac-128m|\
  	qxwlan,e2600ac-c2|\
 -	wallys,dr40x9)
 +	wallys,dr40x9|\
-+	zyxel,nwa1123acv3|\
-+	zyxel,wac500)
++	zyxel,nwa1123acv3)
  		nand_do_upgrade "$1"
  		;;
  	alfa-network,ap120c-ac)
 diff --git a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dts b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dts
 new file mode 100644
-index 00000000000..3f00fd51415
+index 0000000000..232ae56aa8
 --- /dev/null
 +++ b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dts
-@@ -0,0 +1,8 @@
-+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
-+
-+#include "qcom-ipq4018-nwa1123acv3.dtsi"
-+
-+/ {
-+	model = "Zyxel NWA1123ACv3";
-+	compatible = "zyxel,nwa1123acv3";
-+};
-diff --git a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dtsi b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dtsi
-new file mode 100644
-index 00000000000..e4a7b689aae
---- /dev/null
-+++ b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dtsi
-@@ -0,0 +1,35 @@
+@@ -0,0 +1,38 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 +
 +#include "qcom-ipq4018-zyxel-wac500.dtsi"
 +
 +/ {
++	model = "Zyxel NWA1123ACv3";
++	compatible = "zyxel,nwa1123acv3";
++
 +	aliases {
 +		led-boot = &led_status_green;
 +		led-failsafe = &led_status_red;
@@ -223,23 +205,9 @@ index 00000000000..e4a7b689aae
 +	nvmem-cells = <&precal_art_5000>, <&macaddr_mrd_fff8 2>;
 +	qcom,ath10k-calibration-variant = "Zyxel-NWA1123ACv3";
 +};
-diff --git a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500.dts b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500.dts
-new file mode 100644
-index 00000000000..7178db5ddde
---- /dev/null
-+++ b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500.dts
-@@ -0,0 +1,8 @@
-+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
-+
-+#include "qcom-ipq4018-nwa1123acv3.dtsi"
-+
-+/ {
-+	model = "Zyxel WAC500";
-+	compatible = "zyxel,wac500";
-+};
 diff --git a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-zyxel-wac500.dtsi b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-zyxel-wac500.dtsi
 new file mode 100644
-index 00000000000..138da8a057e
+index 0000000000..138da8a057
 --- /dev/null
 +++ b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-zyxel-wac500.dtsi
 @@ -0,0 +1,329 @@
@@ -573,33 +541,19 @@ index 00000000000..138da8a057e
 +	reset-delay-us = <2000>;
 +};
 diff --git a/target/linux/ipq40xx/image/generic.mk b/target/linux/ipq40xx/image/generic.mk
-index 4e155a3b071..edfef390f49 100644
+index 4e155a3b07..87ec9f5751 100644
 --- a/target/linux/ipq40xx/image/generic.mk
 +++ b/target/linux/ipq40xx/image/generic.mk
-@@ -4,12 +4,22 @@ DEVICE_VARS += RAS_BOARD RAS_ROOTFS_SIZE RAS_VERSION
+@@ -4,6 +4,8 @@ DEVICE_VARS += RAS_BOARD RAS_ROOTFS_SIZE RAS_VERSION
  DEVICE_VARS += WRGG_DEVNAME WRGG_SIGNATURE
  DEVICE_VARS += SUPPORTED_TELTONIKA_DEVICES
  DEVICE_VARS += SUPPORTED_TELTONIKA_HW_MODS
-+DEVICE_VARS += ZYXEL_MODEL_ID
++DEVICE_VARS += ZYXEL_MODEL_ID_0 ZYXEL_MODEL_ID_1 ZYXEL_MODEL_ID_2
++DEVICE_VARS += ZYXEL_MODEL_ID_3 ZYXEL_MODEL_ID_4
  
  define Build/netgear-fit-padding
  	./netgear-fit-padding.py $@ $@.new
- 	mv $@.new $@
- endef
- 
-+# Wrap the image in the outer FIT the stock firmware checks against the
-+# device model ID before accepting it as a factory image.
-+define Build/zyxel-ipq40xx-fit
-+	$(TOPDIR)/scripts/mkits-zyxel-fit-filogic.sh \
-+		$@.its $@ "$(ZYXEL_MODEL_ID) ff ff ff ff ff ff ff ff"
-+	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage -f $@.its $@.new
-+	@mv $@.new $@
-+endef
-+
- define Device/FitImage
- 	KERNEL_SUFFIX := -uImage.itb
- 	KERNEL = kernel-bin | gzip | fit gzip $$(KDIR)/image-$$(DEVICE_DTS).dtb
-@@ -1414,6 +1424,34 @@ define Device/zyxel_nbg6617
+@@ -1414,6 +1416,35 @@ define Device/zyxel_nbg6617
  endef
  TARGET_DEVICES += zyxel_nbg6617
  
@@ -613,23 +567,24 @@ index 4e155a3b071..edfef390f49 100644
 +	PAGESIZE := 2048
 +	IMAGE_SIZE := 53248k
 +	IMAGES += factory.bin
-+	IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-ipq40xx-fit
++	IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-fit-factory-img
 +	DEVICE_PACKAGES := uboot-envtools zyxel-bootconfig-ipq
++	ZYXEL_MODEL_ID_0 :=
++	ZYXEL_MODEL_ID_1 :=
++	ZYXEL_MODEL_ID_2 :=
++	ZYXEL_MODEL_ID_3 :=
++	ZYXEL_MODEL_ID_4 :=
 +endef
 +
 +define Device/zyxel_nwa1123acv3
 +	$(call Device/zyxel_wac500_common)
 +	DEVICE_MODEL := NWA1123ACv3
-+	ZYXEL_MODEL_ID := 62 e1
++	DEVICE_ALT0_VENDOR := Zyxel
++	DEVICE_ALT0_MODEL := WAC500
++	ZYXEL_MODEL_ID_0 := 62 e1
++	ZYXEL_MODEL_ID_1 := 63 e1
 +endef
 +TARGET_DEVICES += zyxel_nwa1123acv3
-+
-+define Device/zyxel_wac500
-+	$(call Device/zyxel_wac500_common)
-+	DEVICE_MODEL := WAC500
-+	ZYXEL_MODEL_ID := 63 e1
-+endef
-+TARGET_DEVICES += zyxel_wac500
 +
  define Device/zyxel_wre6606
  	$(call Device/FitImage)

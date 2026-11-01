@@ -30,7 +30,7 @@ diff --git a/package/utils/zyxel-bootconfig-ipq807x/Makefile b/package/utils/zyx
 similarity index 65%
 rename from package/utils/zyxel-bootconfig-ipq807x/Makefile
 rename to package/utils/zyxel-bootconfig-ipq/Makefile
-index b624a13b09b..f7675b2793a 100644
+index b624a13b09..f7675b2793 100644
 --- a/package/utils/zyxel-bootconfig-ipq807x/Makefile
 +++ b/package/utils/zyxel-bootconfig-ipq/Makefile
 @@ -8,22 +8,22 @@
@@ -79,7 +79,7 @@ diff --git a/package/utils/zyxel-bootconfig-ipq807x/files/95_apply_bootconfig b/
 similarity index 52%
 rename from package/utils/zyxel-bootconfig-ipq807x/files/95_apply_bootconfig
 rename to package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
-index 03c833b9516..0c7c2b49f50 100644
+index 03c833b951..0c7c2b49f5 100644
 --- a/package/utils/zyxel-bootconfig-ipq807x/files/95_apply_bootconfig
 +++ b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
 @@ -3,8 +3,8 @@ apply_bootconfig() {
@@ -98,7 +98,7 @@ similarity index 100%
 rename from package/utils/zyxel-bootconfig-ipq807x/files/zyxel-bootconfig-ipq807x
 rename to package/utils/zyxel-bootconfig-ipq/files/zyxel-bootconfig-ipq
 diff --git a/target/linux/qualcommax/image/ipq807x.mk b/target/linux/qualcommax/image/ipq807x.mk
-index f356bbbca52..15ab3f47361 100644
+index f356bbbca5..15ab3f4736 100644
 --- a/target/linux/qualcommax/image/ipq807x.mk
 +++ b/target/linux/qualcommax/image/ipq807x.mk
 @@ -556,7 +556,7 @@ define Device/zyxel_nwa210ax

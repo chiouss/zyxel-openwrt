@@ -99,7 +99,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
  create mode 100644 target/linux/mediatek/dts/mt7981b-zyxel-wax300h.dts
 
 diff --git a/package/utils/zyxel-bootconfig/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig/files/95_apply_bootconfig
-index b109b3c95cc..47bc696ce88 100644
+index b109b3c95c..47bc696ce8 100644
 --- a/package/utils/zyxel-bootconfig/files/95_apply_bootconfig
 +++ b/package/utils/zyxel-bootconfig/files/95_apply_bootconfig
 @@ -4,7 +4,8 @@ apply_bootconfig() {
@@ -113,7 +113,7 @@ index b109b3c95cc..47bc696ce88 100644
  		zyxel-bootconfig "/dev/mtd$mtd_idx" set-image-status 0 valid
  		zyxel-bootconfig "/dev/mtd$mtd_idx" set-active-image 0
 diff --git a/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface b/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface
-index 40b9a926c25..4e6b6f0c782 100644
+index 40b9a926c2..4e6b6f0c78 100644
 --- a/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface
 +++ b/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface
 @@ -38,6 +38,10 @@ set_preinit_iface() {
@@ -129,7 +129,7 @@ index 40b9a926c25..4e6b6f0c782 100644
  		;;
 diff --git a/target/linux/mediatek/dts/mt7981b-zyxel-wax300h.dts b/target/linux/mediatek/dts/mt7981b-zyxel-wax300h.dts
 new file mode 100644
-index 00000000000..ab08c5bcd72
+index 0000000000..ab08c5bcd7
 --- /dev/null
 +++ b/target/linux/mediatek/dts/mt7981b-zyxel-wax300h.dts
 @@ -0,0 +1,292 @@
@@ -426,7 +426,7 @@ index 00000000000..ab08c5bcd72
 +	};
 +};
 diff --git a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network b/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
-index b60e3062dd8..93a5e1e2f23 100644
+index b60e3062dd..93a5e1e2f2 100644
 --- a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
 +++ b/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
 @@ -230,6 +230,9 @@ mediatek_setup_interfaces()
@@ -440,10 +440,10 @@ index b60e3062dd8..93a5e1e2f23 100644
  		ucidef_set_interface_lan "lan1 lan2"
  		;;
 diff --git a/target/linux/mediatek/image/filogic.mk b/target/linux/mediatek/image/filogic.mk
-index 2a6d5df210d..8bd206d3e61 100644
+index 9fa3fcb657..4ceba9be8a 100644
 --- a/target/linux/mediatek/image/filogic.mk
 +++ b/target/linux/mediatek/image/filogic.mk
-@@ -3896,6 +3896,14 @@ define Device/zyxel_nwa50ax-pro
+@@ -3889,6 +3889,14 @@ define Device/zyxel_nwa50ax-pro
  endef
  TARGET_DEVICES += zyxel_nwa50ax-pro
  

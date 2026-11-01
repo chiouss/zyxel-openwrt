@@ -15,7 +15,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/package/utils/zyxel-bootconfig-ipq/Makefile b/package/utils/zyxel-bootconfig-ipq/Makefile
-index f7675b2793a..7dd64de8624 100644
+index f7675b2793..7dd64de862 100644
 --- a/package/utils/zyxel-bootconfig-ipq/Makefile
 +++ b/package/utils/zyxel-bootconfig-ipq/Makefile
 @@ -19,7 +19,7 @@ define Package/zyxel-bootconfig-ipq

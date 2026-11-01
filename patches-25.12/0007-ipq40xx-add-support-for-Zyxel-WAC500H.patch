@@ -113,38 +113,38 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
  create mode 100644 target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500h.dts
 
 diff --git a/package/boot/uboot-tools/uboot-envtools/files/ipq40xx b/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
-index 465f84ac018..600458848a9 100644
+index 869f5ffc6b..45adc01b8d 100644
 --- a/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
 +++ b/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
-@@ -27,7 +27,8 @@ pakedge,wr-1|\
+@@ -26,7 +26,8 @@ openmesh,a62|\
+ pakedge,wr-1|\
  plasmacloud,pa1200|\
  plasmacloud,pa2200|\
- zyxel,nwa1123acv3|\
--zyxel,wac500)
-+zyxel,wac500|\
+-zyxel,nwa1123acv3)
++zyxel,nwa1123acv3|\
 +zyxel,wac500h)
  	ubootenv_add_uci_config "/dev/mtd5" "0x0" "0x10000" "0x10000"
  	;;
  aruba,ap-303)
 diff --git a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
-index 7fdf0ebff6e..5b428855780 100644
+index 533bdd6d2b..05d79da16d 100644
 --- a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
 +++ b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
-@@ -4,7 +4,8 @@ apply_bootconfig() {
+@@ -3,7 +3,8 @@ apply_bootconfig() {
+ 
  	case $(board_name) in
  	zyxel,nwa210ax|\
- 	zyxel,nwa1123acv3|\
--	zyxel,wac500)
-+	zyxel,wac500|\
+-	zyxel,nwa1123acv3)
++	zyxel,nwa1123acv3|\
 +	zyxel,wac500h)
  		status="$(zyxel-bootconfig-ipq show | awk '/image0:/ {print $2}')"
  		[ "$status" != "selected" ] && zyxel-bootconfig-ipq --force set image0
  		;;
 diff --git a/target/linux/ipq40xx/base-files/etc/board.d/02_network b/target/linux/ipq40xx/base-files/etc/board.d/02_network
-index 12bf3e4f52e..edad47090eb 100644
+index 46c69c1200..2f3eebb547 100644
 --- a/target/linux/ipq40xx/base-files/etc/board.d/02_network
 +++ b/target/linux/ipq40xx/base-files/etc/board.d/02_network
-@@ -146,6 +146,9 @@ ipq40xx_setup_interfaces()
+@@ -145,6 +145,9 @@ ipq40xx_setup_interfaces()
  		ucidef_set_interface_lan "lan1 lan2 lan3 lan4"
  		ucidef_set_interface "wan" device "/dev/cdc-wdm0" protocol "qmi"
  		;;
@@ -155,22 +155,22 @@ index 12bf3e4f52e..edad47090eb 100644
  		echo "Unsupported hardware. Network interfaces not initialized"
  		;;
 diff --git a/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh b/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
-index b6010e0111d..ea7bb898319 100644
+index c1043ee931..d41ba439a9 100644
 --- a/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
 +++ b/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
-@@ -131,7 +131,8 @@ platform_do_upgrade() {
+@@ -130,7 +130,8 @@ platform_do_upgrade() {
+ 	p2w,r619ac-128m|\
  	qxwlan,e2600ac-c2|\
  	wallys,dr40x9|\
- 	zyxel,nwa1123acv3|\
--	zyxel,wac500)
-+	zyxel,wac500|\
+-	zyxel,nwa1123acv3)
++	zyxel,nwa1123acv3|\
 +	zyxel,wac500h)
  		nand_do_upgrade "$1"
  		;;
  	alfa-network,ap120c-ac)
 diff --git a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500h.dts b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500h.dts
 new file mode 100644
-index 00000000000..17d6e4cb4de
+index 0000000000..17d6e4cb4d
 --- /dev/null
 +++ b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-wac500h.dts
 @@ -0,0 +1,54 @@
@@ -229,17 +229,17 @@ index 00000000000..17d6e4cb4de
 +	qcom,ath10k-calibration-variant = "Zyxel-WAC500H";
 +};
 diff --git a/target/linux/ipq40xx/image/generic.mk b/target/linux/ipq40xx/image/generic.mk
-index edfef390f49..a87d94812e1 100644
+index 87ec9f5751..a9dc287b5e 100644
 --- a/target/linux/ipq40xx/image/generic.mk
 +++ b/target/linux/ipq40xx/image/generic.mk
-@@ -1452,6 +1452,13 @@ define Device/zyxel_wac500
+@@ -1445,6 +1445,13 @@ define Device/zyxel_nwa1123acv3
  endef
- TARGET_DEVICES += zyxel_wac500
+ TARGET_DEVICES += zyxel_nwa1123acv3
  
 +define Device/zyxel_wac500h
 +	$(call Device/zyxel_wac500_common)
 +	DEVICE_MODEL := WAC500H
-+	ZYXEL_MODEL_ID := 64 e1
++	ZYXEL_MODEL_ID_0 := 64 e1
 +endef
 +TARGET_DEVICES += zyxel_wac500h
 +
