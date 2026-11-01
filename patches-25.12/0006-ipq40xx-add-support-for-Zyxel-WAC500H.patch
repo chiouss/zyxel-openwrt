@@ -96,11 +96,8 @@ LAN2:   base MAC + 2
 WiFi board data
 ---------------
 The radios report bmi-board-id 20 (2.4GHz) and 21 (5GHz) and use the
-calibration variant "Zyxel-WAC500H".
-Device-specific board data is not in the ath10k board file collection
-yet, so ath10k falls back to the generic
-bus=ahb,bmi-chip-id=0,bmi-board-id=20/21 entries of
-ath10k-board-qca4019. The board data will be submitted separately.
+calibration variant "Zyxel-WAC500H". The board data comes from the
+ipq-wifi-zyxel_wac500h package in the zyxel feed.
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

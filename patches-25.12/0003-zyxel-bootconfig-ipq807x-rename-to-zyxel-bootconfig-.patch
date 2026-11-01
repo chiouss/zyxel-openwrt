@@ -11,8 +11,8 @@ ipq50xx, ipq807x, ...) and one for ramips and mt798x, which is already
 covered by the zyxel-bootconfig package.
 
 Rename the package to zyxel-bootconfig-ipq, so other IPQ targets can use
-it without shipping a duplicate package, and update the NWA110AX and
-NWA210AX DEVICE_PACKAGES accordingly. No functional change.
+it without shipping a duplicate package, and update the NWA210AX
+DEVICE_PACKAGES accordingly. No functional change.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Signed-off-by: Mark Chiou <chiouss@gmail.com>

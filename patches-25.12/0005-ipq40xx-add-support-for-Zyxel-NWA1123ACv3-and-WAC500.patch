@@ -86,11 +86,8 @@ LAN:    base MAC (mrd partition, offset 0xfff8), matches the label
 WiFi board data
 ---------------
 The radios report bmi-board-id 16 (2.4GHz) and 17 (5GHz) and use the
-calibration variant "Zyxel-NWA1123ACv3" on both devices. Device-specific
-board data is not in the ath10k board file collection yet, so ath10k
-falls back to the generic bus=ahb,bmi-chip-id=0,bmi-board-id=16/17
-entries of ath10k-board-qca4019. The board data will be submitted
-separately.
+calibration variant "Zyxel-NWA1123ACv3" on both devices. The board data
+comes from the ipq-wifi-zyxel_nwa1123acv3 package in the zyxel feed.
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
