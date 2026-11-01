@@ -1,0 +1,810 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Tue, 29 Sep 2026 16:47:40 +0800
+Subject: [PATCH] qualcommax: ipq50xx: add support for Zyxel NWA220AX-6E
+
+The Zyxel NWA220AX-6E is a ceiling-mount 802.11ax (Wi-Fi 6E) access
+point based on the Qualcomm AP-MP03.1 reference design. A single QCN9024
+radio can be switched between the 5 GHz and the 6 GHz band.
+
+Hardware
+--------
+SoC:    Qualcomm IPQ5018
+RAM:    1G DDR3
+FLASH:  8M SPI-NOR (Winbond W25Q64DW)
+        256M SPI-NAND (Winbond W25N02JW)
+ETH:    1x 2.5 Gigabit Ethernet (QCA8081, PoE-in, "uplink")
+        1x Gigabit Ethernet (IPQ5018 internal PHY, "lan1")
+WiFi:   Qualcomm IPQ5018 (2.4GHz 802.11ax, 2x2)
+        Qualcomm QCN9024 (5GHz or 6GHz 802.11ax, 4x4)
+BT:     Qualcomm IPQ5018 (BT 5.1, not supported)
+BTN:    1x Reset
+LED:    1x Multi-Color (RGBW)
+        2x port LEDs on each Ethernet port
+Power:  802.3af/at PoE or 12V/2A DC
+
+UART Console
+------------
+4-pin console header on the board.
+
+Settings: 3.3V TTL, 115200 8N1
+
+Installation Web-UI
+-------------------
+The device uses a dual-image setup and OpenWrt can only be installed as
+image 0, as the bootloader always passes "ubi.mtd=rootfs" to the kernel.
+When the currently running stock firmware is image 0, OpenWrt will be
+installed as image 1, fail to boot and the device returns to stock
+firmware. If this happens, install any version of stock firmware so
+that it runs as image 1, before installing OpenWrt. Alternatively, if
+there already is a valid stock firmware in image 1, the "debug
+dual-image show" and "debug dual-image set boot-image image1" commands
+can be used in the stock CLI via serial/SSH/telnet to switch to image 1.
+
+ * Rename the OpenWrt factory image to a shorter name, for example
+   "openwrt.bin" (the stock firmware has a character limit)
+ * In the web interface, go to "Maintenance" -> "File Manager" ->
+   "Firmware Package" (or click the link next to "Firmware Version"
+   under "Device Information" on the dashboard)
+ * Under "Upload File" browse to the renamed OpenWrt factory image and
+   click on "Upload"
+
+The factory image is a UBI image wrapped in an outer FIT carrying the
+device model ID ("76 e1"), which the stock firmware checks before
+accepting it. The stock firmware flashes the "ubi" section into the
+inactive image. On first boot, zyxel-bootconfig marks the OpenWrt image
+as the selected one so the bootloader keeps booting it.
+
+Switch Boot Image
+-----------------
+OpenWrt to stock: "zyxel-bootconfig-ipq set image1"
+Stock to OpenWrt: "debug dual-image set boot-image image0"
+In the bootloader: "atgo 0" / "atgo 1"
+
+Unbrick / Revert to Stock with the Boot Module
+----------------------------------------------
+ * Disconnect the device from power
+ * Configure your machine to 192.168.1.103/24 and start a TFTP server
+ * Put the stock firmware image into the TFTP server root and rename it
+   to "ZLD-current"
+ * Establish a serial connection to the device through the console port
+ * Connect the device to power
+ * When prompted, press a key to abort automatic boot and enter debug
+   mode
+ * Use the "atnz" command to flash the firmware image
+ * Use the "atgo" command to boot from the newly flashed image
+
+Flash layout
+------------
+The NAND partitions follow the layout reported by the stock kernel,
+which differs from the flash_partition XML in the vendor SDK:
+0:TRAINING, rootfs (image 0), rootfs_1 (image 1), rootfs_data, myzyxel
+and logs. The stock rootfs_data partition is named zyxel_rootfs_data to
+not be picked up as the OpenWrt overlay.
+
+MAC addresses
+-------------
+uplink:     base MAC (mrd partition, offset 0xfff8), matches the label
+lan1:       base MAC + 1
+WiFi 2.4G:  base MAC + 2
+WiFi 5/6G:  base MAC + 3
+
+Ethernet
+--------
+Both ports use the NSS-DP/SSDK stack. The SSDK switches the uniphy to
+SGMII+ when the QCA8081 links at 2.5G and back to SGMII below that.
+
+LEDs
+----
+The uplink port LEDs are driven by the QCA8081 in hardware: green is on
+at a 2.5G link, amber is on at a 10/100/1000 link, and both blink on
+traffic while lit.
+The lan1 port LEDs are driven by the IPQ5018 internal PHY, whose LED
+signals are routed through GPIO46 (green) and GPIO30 (amber): green is
+on at a 1G link, amber is on at a 10/100 link, and both blink on
+traffic while lit.
+
+WiFi
+----
+The board data (calibration variant "Zyxel-NWA220AX-6E") comes from
+the ipq-wifi-zyxel_nwa220ax-6e package in the zyxel feed.
+
+The QCN9024 is handled by the ath11k QCN9074 support and firmware. Its
+board data covers both 5 GHz and 6 GHz, which needs the ath11k patch to
+advertise HT/VHT on the 5 GHz band of a 5/6 GHz radio.
+6 GHz requires a country code and WPA3-SAE. Most clients only scan the
+6 GHz preferred scanning channels (PSC: 5, 21, 37, ...), so choose one
+of them instead of relying on ACS.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ .../boot/dts/qcom/ipq5018-nwa220ax-6e.dts     |  74 +++
+ .../arm64/boot/dts/qcom/ipq5018-zyxel-6e.dtsi | 469 ++++++++++++++++++
+ target/linux/qualcommax/image/ipq50xx.mk      |  23 +
+ .../ipq50xx/base-files/etc/board.d/01_leds    |   6 +
+ .../ipq50xx/base-files/etc/board.d/02_network |   3 +
+ .../etc/hotplug.d/firmware/11-ath11k-caldata  |  14 +
+ .../base-files/lib/upgrade/platform.sh        |  10 +
+ 7 files changed, 599 insertions(+)
+ create mode 100644 target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-nwa220ax-6e.dts
+ create mode 100644 target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-zyxel-6e.dtsi
+
+diff --git a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-nwa220ax-6e.dts b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-nwa220ax-6e.dts
+new file mode 100644
+index 0000000000..625beb6221
+--- /dev/null
++++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-nwa220ax-6e.dts
+@@ -0,0 +1,74 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++/dts-v1/;
++
++#include "ipq5018-zyxel-6e.dtsi"
++
++/ {
++	model = "Zyxel NWA220AX-6E";
++	compatible = "zyxel,nwa220ax-6e", "qcom,ipq5018";
++
++	leds {
++		compatible = "gpio-leds";
++
++		led_status_white: led-0 {
++			function = LED_FUNCTION_STATUS;
++			color = <LED_COLOR_ID_WHITE>;
++			gpios = <&tlmm 22 GPIO_ACTIVE_HIGH>;
++		};
++
++		led_status_red: led-1 {
++			function = LED_FUNCTION_STATUS;
++			color = <LED_COLOR_ID_RED>;
++			gpios = <&tlmm 24 GPIO_ACTIVE_HIGH>;
++		};
++
++		led_status_green: led-2 {
++			function = LED_FUNCTION_STATUS;
++			color = <LED_COLOR_ID_GREEN>;
++			gpios = <&tlmm 25 GPIO_ACTIVE_HIGH>;
++		};
++
++		led_status_blue: led-3 {
++			function = LED_FUNCTION_STATUS;
++			color = <LED_COLOR_ID_BLUE>;
++			gpios = <&tlmm 26 GPIO_ACTIVE_HIGH>;
++		};
++	};
++};
++
++&tlmm {
++	/* antenna direction select, all low as set up by the vendor firmware */
++	ant-dir-hog {
++		gpio-hog;
++		gpios = <17 GPIO_ACTIVE_HIGH>,
++			<18 GPIO_ACTIVE_HIGH>,
++			<19 GPIO_ACTIVE_HIGH>;
++		output-low;
++		line-name = "ant-dir";
++	};
++
++	rst-radio-hog {
++		gpio-hog;
++		gpios = <40 GPIO_ACTIVE_HIGH>;
++		output-high;
++		line-name = "rst-radio";
++	};
++};
++
++&pcie_wifi {
++	qcom,ath11k-calibration-variant = "Zyxel-NWA220AX-6E";
++};
++
++&q6v5_wcss {
++	firmware-name = "ath11k/IPQ5018/hw1.0/q6_fw.mdt",
++			"ath11k/IPQ5018/hw1.0/m3_fw.mdt";
++};
++
++&wifi {
++	status = "okay";
++
++	qcom,rproc = <&q6v5_wcss>;
++	qcom,ath11k-calibration-variant = "Zyxel-NWA220AX-6E";
++	qcom,ath11k-fw-memory-mode = <1>;
++};
+diff --git a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-zyxel-6e.dtsi b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-zyxel-6e.dtsi
+new file mode 100644
+index 0000000000..0b2f3a4064
+--- /dev/null
++++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-zyxel-6e.dtsi
+@@ -0,0 +1,469 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++#include "ipq5018.dtsi"
++#include "ipq5018-ess.dtsi"
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/input/input.h>
++#include <dt-bindings/leds/common.h>
++
++/ {
++	aliases {
++		serial0 = &blsp1_uart1;
++		label-mac-device = &dp2;
++		led-boot = &led_status_blue;
++		led-failsafe = &led_status_white;
++		led-running = &led_status_green;
++		led-upgrade = &led_status_red;
++	};
++
++	chosen {
++		bootargs-append = " root=/dev/ubiblock0_1 swiotlb=1 coherent_pool=2M";
++		stdout-path = "serial0:115200n8";
++	};
++
++	keys {
++		compatible = "gpio-keys";
++		pinctrl-0 = <&button_pins>;
++		pinctrl-names = "default";
++
++		reset {
++			label = "reset";
++			gpios = <&tlmm 23 GPIO_ACTIVE_LOW>;
++			linux,code = <KEY_RESTART>;
++		};
++	};
++};
++
++&sleep_clk {
++	clock-frequency = <32000>;
++};
++
++&xo_board_clk {
++	clock-div = <4>;
++	clock-mult = <1>;
++};
++
++&blsp1_uart1 {
++	status = "okay";
++	pinctrl-0 = <&serial_0_pins>;
++	pinctrl-names = "default";
++};
++
++&crypto {
++	status = "okay";
++};
++
++&cryptobam {
++	status = "okay";
++};
++
++&prng {
++	status = "okay";
++};
++
++&qfprom {
++	status = "okay";
++};
++
++&tsens {
++	status = "okay";
++};
++
++&switch {
++	status = "okay";
++
++	/*
++	 * The SSDK switches the uniphy to SGMII+ when the QCA8081 links
++	 * at 2.5G and back to SGMII for lower speeds.
++	 */
++	switch_mac_mode = <MAC_MODE_SGMII_CHANNEL0>;
++
++	qcom,port_phyinfo {
++		/* MAC0 -> internal GE PHY */
++		port@0 {
++			port_id = <1>;
++			mdiobus = <&mdio0>;
++			phy_address = <7>;
++		};
++
++		/* MAC1 -> uniphy -> QCA8081 */
++		port@1 {
++			port_id = <2>;
++			mdiobus = <&mdio1>;
++			phy_address = <16>;
++			port_mac_sel = "QGMAC_PORT";
++		};
++	};
++};
++
++&dp1 {
++	status = "okay";
++
++	label = "lan1";
++
++	nvmem-cells = <&label_mac 1>;
++	nvmem-cell-names = "mac-address";
++};
++
++&dp2 {
++	status = "okay";
++
++	phy-handle = <&qca8081>;
++
++	label = "uplink";
++
++	nvmem-cells = <&label_mac 0>;
++	nvmem-cell-names = "mac-address";
++};
++
++&mdio0 {
++	status = "okay";
++
++	/* route the internal GE PHY LED signals to the port LEDs */
++	pinctrl-0 = <&ge_phy_led_pins>;
++	pinctrl-names = "default";
++};
++
++&ge_phy {
++	leds {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		/* 1G link/activity */
++		led@0 {
++			reg = <0>;
++			color = <LED_COLOR_ID_GREEN>;
++			function = LED_FUNCTION_LAN;
++			default-state = "keep";
++		};
++
++		/* 10/100 link/activity */
++		led@1 {
++			reg = <1>;
++			color = <LED_COLOR_ID_AMBER>;
++			function = LED_FUNCTION_LAN;
++			default-state = "keep";
++		};
++	};
++};
++
++&mdio1 {
++	status = "okay";
++
++	pinctrl-0 = <&mdio1_pins>;
++	pinctrl-names = "default";
++
++	qca8081: ethernet-phy@16 {
++		compatible = "ethernet-phy-id004d.d101";
++		reg = <16>;
++		reset-deassert-us = <10000>;
++		reset-gpios = <&tlmm 39 GPIO_ACTIVE_LOW>;
++
++		leds {
++			#address-cells = <1>;
++			#size-cells = <0>;
++
++			/* 2.5G link/activity */
++			led@0 {
++				reg = <0>;
++				color = <LED_COLOR_ID_GREEN>;
++				function = LED_FUNCTION_LAN;
++				default-state = "keep";
++			};
++
++			/* 10/100/1000 link/activity */
++			led@2 {
++				reg = <2>;
++				color = <LED_COLOR_ID_AMBER>;
++				function = LED_FUNCTION_LAN;
++				default-state = "keep";
++			};
++		};
++	};
++};
++
++&blsp1_spi1 {
++	status = "okay";
++
++	flash@0 {
++		reg = <0>;
++		compatible = "jedec,spi-nor";
++		spi-max-frequency = <50000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			partition@0 {
++				label = "0:sbl1";
++				reg = <0x000000 0x030000>;
++				read-only;
++			};
++
++			partition@30000 {
++				label = "0:mibib";
++				reg = <0x030000 0x010000>;
++				read-only;
++			};
++
++			partition@40000 {
++				label = "0:bootconfig";
++				reg = <0x040000 0x010000>;
++			};
++
++			partition@50000 {
++				label = "0:bootconfig1";
++				reg = <0x050000 0x010000>;
++			};
++
++			partition@60000 {
++				label = "0:qsee";
++				reg = <0x060000 0x0a0000>;
++				read-only;
++			};
++
++			partition@100000 {
++				label = "0:qsee_1";
++				reg = <0x100000 0x0a0000>;
++				read-only;
++			};
++
++			partition@1a0000 {
++				label = "0:devcfg";
++				reg = <0x1a0000 0x010000>;
++				read-only;
++			};
++
++			partition@1b0000 {
++				label = "0:devcfg_1";
++				reg = <0x1b0000 0x010000>;
++				read-only;
++			};
++
++			partition@1c0000 {
++				label = "0:cdt";
++				reg = <0x1c0000 0x010000>;
++				read-only;
++			};
++
++			partition@1d0000 {
++				label = "0:cdt_1";
++				reg = <0x1d0000 0x010000>;
++				read-only;
++			};
++
++			partition@1e0000 {
++				label = "0:appsblenv";
++				reg = <0x1e0000 0x010000>;
++			};
++
++			partition@1f0000 {
++				label = "0:appsbl";
++				reg = <0x1f0000 0x0a0000>;
++				read-only;
++			};
++
++			partition@290000 {
++				label = "0:appsbl_1";
++				reg = <0x290000 0x0a0000>;
++				read-only;
++			};
++
++			partition@330000 {
++				label = "0:art";
++				reg = <0x330000 0x070000>;
++				read-only;
++			};
++
++			partition@3a0000 {
++				label = "mrd";
++				reg = <0x3a0000 0x010000>;
++				read-only;
++
++				nvmem-layout {
++					compatible = "fixed-layout";
++					#address-cells = <1>;
++					#size-cells = <1>;
++
++					label_mac: macaddr@fff8 {
++						compatible = "mac-base";
++						reg = <0xfff8 0x6>;
++						#nvmem-cell-cells = <1>;
++					};
++				};
++			};
++
++			partition@3b0000 {
++				label = "mrd_1";
++				reg = <0x3b0000 0x010000>;
++				read-only;
++			};
++
++			partition@3c0000 {
++				label = "reserved";
++				reg = <0x3c0000 0x440000>;
++				read-only;
++			};
++		};
++	};
++};
++
++&qpic_bam {
++	status = "okay";
++};
++
++&qpic_nand {
++	pinctrl-0 = <&qpic_pins>;
++	pinctrl-names = "default";
++	status = "okay";
++
++	nand@0 {
++		compatible = "spi-nand";
++		reg = <0>;
++		nand-ecc-engine = <&qpic_nand>;
++		nand-bus-width = <8>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			partition@0 {
++				label = "0:training";
++				reg = <0x0000000 0x0080000>;
++				read-only;
++			};
++
++			/* image0: U-Boot always passes ubi.mtd=rootfs */
++			partition@80000 {
++				label = "rootfs";
++				reg = <0x0080000 0x3e00000>;
++			};
++
++			/* image1 */
++			partition@3e80000 {
++				label = "rootfs_1";
++				reg = <0x3e80000 0x3e00000>;
++			};
++
++			partition@7c80000 {
++				label = "zyxel_rootfs_data";
++				reg = <0x7c80000 0x3c00000>;
++				read-only;
++			};
++
++			partition@b880000 {
++				label = "myzyxel";
++				reg = <0xb880000 0x0f00000>;
++				read-only;
++			};
++
++			partition@c780000 {
++				label = "logs";
++				reg = <0xc780000 0x3880000>;
++			};
++		};
++	};
++};
++
++&tlmm {
++	button_pins: button-state {
++		pins = "gpio23";
++		function = "gpio";
++		drive-strength = <8>;
++		bias-pull-up;
++	};
++
++	ge_phy_led_pins: ge-phy-led-state {
++		led0-pins {
++			pins = "gpio46";
++			function = "led0";
++			drive-strength = <8>;
++			bias-pull-down;
++		};
++
++		led2-pins {
++			pins = "gpio30";
++			function = "led2";
++			drive-strength = <8>;
++			bias-pull-down;
++		};
++	};
++
++	mdio1_pins: mdio-state {
++		mdc-pins {
++			pins = "gpio36";
++			function = "mdc";
++			drive-strength = <8>;
++			bias-pull-up;
++		};
++
++		mdio-pins {
++			pins = "gpio37";
++			function = "mdio";
++			drive-strength = <8>;
++			bias-pull-up;
++		};
++	};
++
++	qpic_pins: qpic-state {
++		clock-pins {
++			pins = "gpio9";
++			function = "qspi_clk";
++			drive-strength = <8>;
++			bias-disable;
++		};
++
++		cs-pins {
++			pins = "gpio8";
++			function = "qspi_cs";
++			drive-strength = <8>;
++			bias-disable;
++		};
++
++		data-pins {
++			pins = "gpio4", "gpio5", "gpio6", "gpio7";
++			function = "qspi_data";
++			drive-strength = <8>;
++			bias-disable;
++		};
++	};
++
++	serial_0_pins: uart0-state {
++		pins = "gpio20", "gpio21";
++		function = "blsp0_uart0";
++		bias-disable;
++	};
++
++	/* MR input of the board reset supervisor, low resets the board */
++	rst-mb-hog {
++		gpio-hog;
++		gpios = <27 GPIO_ACTIVE_HIGH>;
++		output-high;
++		line-name = "rst-mb";
++	};
++};
++
++&pcie0_phy {
++	status = "okay";
++};
++
++&pcie0 {
++	status = "okay";
++
++	perst-gpios = <&tlmm 15 GPIO_ACTIVE_LOW>;
++
++	pcie@0 {
++		pcie_wifi: wifi@0,0 {
++			status = "okay";
++
++			/* QCN9074: ath11k lacks DT compatible for PCI cards */
++			compatible = "pci17cb,1104";
++			reg = <0x00010000 0 0 0 0>;
++
++			qcom,ath11k-fw-memory-mode = <0>;
++		};
++	};
++};
+diff --git a/target/linux/qualcommax/image/ipq50xx.mk b/target/linux/qualcommax/image/ipq50xx.mk
+index 60348ccea6..1f376a8a31 100644
+--- a/target/linux/qualcommax/image/ipq50xx.mk
++++ b/target/linux/qualcommax/image/ipq50xx.mk
+@@ -1,4 +1,6 @@
+ DEVICE_VARS += BOOT_SCRIPT
++DEVICE_VARS += ZYXEL_MODEL_ID_0 ZYXEL_MODEL_ID_1 ZYXEL_MODEL_ID_2
++DEVICE_VARS += ZYXEL_MODEL_ID_3 ZYXEL_MODEL_ID_4
+ 
+ define Build/mstc-header
+ 	$(eval version=$(word 1,$(1)))
+@@ -235,6 +237,27 @@ define Device/yuncore_ax850
+ endef
+ TARGET_DEVICES += yuncore_ax850
+ 
++define Device/zyxel_nwa220ax-6e
++	$(call Device/FitImage)
++	$(call Device/UbiFit)
++	DEVICE_VENDOR := Zyxel
++	DEVICE_MODEL := NWA220AX-6E
++	SOC := ipq5018
++	BLOCKSIZE := 128k
++	PAGESIZE := 2048
++	NAND_SIZE := 256m
++	IMAGE_SIZE := 63488k
++	DEVICE_DTS_CONFIG := config@mp03.1
++	IMAGES += factory.bin
++	IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-fit-factory-img
++	ZYXEL_MODEL_ID_0 := 76 e1
++	DEVICE_PACKAGES := ath11k-firmware-ipq5018 \
++		kmod-ath11k-pci \
++		ath11k-firmware-qcn9074 \
++		zyxel-bootconfig-ipq
++endef
++TARGET_DEVICES += zyxel_nwa220ax-6e
++
+ define Device/zyxel_scr50axe
+ 	$(call Device/FitImage)
+ 	$(call Device/UbiFit)
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/01_leds b/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/01_leds
+index 874e96d489..54dbfc81d0 100644
+--- a/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/01_leds
++++ b/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/01_leds
+@@ -26,6 +26,12 @@ linksys,mr5500)
+ 	ucidef_set_led_netdev "wan-port-link" "WAN-PORT-LINK" "qca8k-0.0:04:green:wan" "wan" "link_10 link_100 link_1000"
+ 	ucidef_set_led_netdev "wan-port-activity" "WAN-PORT-ACTIVITY" "qca8k-0.0:04:amber:wan" "wan" "tx rx"
+ 	;;
++zyxel,nwa220ax-6e)
++	ucidef_set_led_netdev "uplink-2500" "UPLINK-2500" "90000.mdio-1:10:green:lan" "uplink" "link_2500 tx rx"
++	ucidef_set_led_netdev "uplink-1000" "UPLINK-1000" "90000.mdio-1:10:amber:lan" "uplink" "link_10 link_100 link_1000 tx rx"
++	ucidef_set_led_netdev "lan1-1000" "LAN1-1000" "88000.mdio-1:07:green:lan" "lan1" "link_1000 tx rx"
++	ucidef_set_led_netdev "lan1-100" "LAN1-100" "88000.mdio-1:07:amber:lan" "lan1" "link_10 link_100 tx rx"
++	;;
+ xiaomi,ax6000)
+ 	ucidef_set_led_netdev "lan1-port-link" "LAN1-PORT-LINK" "90000.mdio-1:00:green:lan" "lan1" "tx rx link_10 link_100 link_1000"
+ 	ucidef_set_led_netdev "lan2-port-link" "LAN2-PORT-LINK" "90000.mdio-1:01:green:lan" "lan2" "tx rx link_10 link_100 link_1000"
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/02_network b/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/02_network
+index 16aa187ec8..dd67af4dee 100644
+--- a/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/02_network
++++ b/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/02_network
+@@ -29,6 +29,9 @@ ipq50xx_setup_interfaces()
+ 	yuncore,ax850)
+ 		ucidef_set_interfaces_lan_wan "lan" "wan"
+ 		;;
++	zyxel,nwa220ax-6e)
++		ucidef_set_interface_lan "uplink lan1" "dhcp"
++		;;
+ 	esac
+ }
+ 
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
+index 92fd10a04f..953bfe9e47 100644
+--- a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
++++ b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
+@@ -57,6 +57,13 @@ case "$FIRMWARE" in
+ 		ath11k_remove_regdomain
+ 		ath11k_set_macflag
+ 		;;
++	zyxel,nwa220ax-6e)
++		caldata_extract "0:art" 0x1000 0x20000
++		label_mac=$(get_mac_label_dt)
++		ath11k_patch_mac $(macaddr_add $label_mac 2) 0
++		ath11k_remove_regdomain
++		ath11k_set_macflag
++		;;
+ 	esac
+ 	;;
+ "ath11k/QCN6122/hw1.0/cal-ahb-b00a040.wifi.bin")
+@@ -141,6 +148,13 @@ case "$FIRMWARE" in
+ 		ath11k_remove_regdomain
+ 		ath11k_set_macflag
+ 		;;
++	zyxel,nwa220ax-6e)
++		caldata_extract "0:art" 0x26800 0x20000
++		label_mac=$(get_mac_label_dt)
++		ath11k_patch_mac $(macaddr_add $label_mac 3) 0
++		ath11k_remove_regdomain
++		ath11k_set_macflag
++		;;
+ 	esac
+ 	;;
+ *)
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh b/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
+index 7fe9728579..9df8cf4424 100644
+--- a/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
++++ b/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
+@@ -230,6 +230,16 @@ platform_do_upgrade() {
+ 		CI_DATA_UBIPART="rootfs"
+ 		nand_do_upgrade "$1"
+ 		;;
++	zyxel,nwa220ax-6e)
++		# Zyxel U-Boot always passes ubi.mtd=rootfs, so OpenWrt
++		# can only run from image0. The zyxel-bootconfig preinit
++		# hook keeps image0 selected in 0:bootconfig{,1}.
++		CI_UBIPART="rootfs"
++		remove_oem_ubi_volume ubi_rootfs
++		remove_oem_ubi_volume bt_fw
++		remove_oem_ubi_volume wifi_fw
++		nand_do_upgrade "$1"
++		;;
+ 	yuncore,ax830|\
+ 	yuncore,ax850|\
+ 	zyxel,scr50axe)

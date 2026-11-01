@@ -1,0 +1,10 @@
+---
+profile: zyxel_nwa220ax-6e
+target: qualcommax
+subtarget: ipq50xx
+description: Build image for the Zyxel NWA220AX-6E
+include:
+  - release
+  - zyxel-feed
+packages:
+  - ipq-wifi-zyxel_nwa220ax-6e

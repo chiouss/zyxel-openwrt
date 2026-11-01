@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Wed, 30 Sep 2026 08:44:12 +0800
+Subject: [PATCH] zyxel-bootconfig-ipq: add ipq50xx support
+
+The ipq50xx based Zyxel NWA220AX-6E uses the same dual-image
+"0:bootconfig"/"0:bootconfig1" mechanism as the ipq807x based
+NWA210AX. Its bootloader selects the image whose bootconfig has
+the higher "age" (0 = failed, 1 = backup, 2 = selected, 0xffffffff = new),
+exactly like on ipq807x.
+
+Broaden the package DEPENDS to cover ipq50xx and apply the bootconfig
+on the NWA220AX-6E as well.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ package/utils/zyxel-bootconfig-ipq/Makefile                  | 2 +-
+ package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/package/utils/zyxel-bootconfig-ipq/Makefile b/package/utils/zyxel-bootconfig-ipq/Makefile
+index 7dd64de862..062a14632e 100644
+--- a/package/utils/zyxel-bootconfig-ipq/Makefile
++++ b/package/utils/zyxel-bootconfig-ipq/Makefile
+@@ -19,7 +19,7 @@ define Package/zyxel-bootconfig-ipq
+ 	CATEGORY:=Base system
+ 	TITLE:=Utility for handling Zyxel bootconfig settings on Qualcomm IPQ devices
+ 	MAINTAINER:=Pascal Beleiu <pascal@beleiu.de>
+-	DEPENDS:=@(TARGET_qualcommax_ipq807x||TARGET_ipq40xx)
++	DEPENDS:=@(TARGET_qualcommax_ipq807x||TARGET_ipq40xx||TARGET_qualcommax_ipq50xx)
+ endef
+ 
+ define Package/zyxel-bootconfig-ipq/description
+diff --git a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
+index 05d79da16d..648fec95c0 100644
+--- a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
++++ b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
+@@ -4,7 +4,8 @@ apply_bootconfig() {
+ 	case $(board_name) in
+ 	zyxel,nwa210ax|\
+ 	zyxel,nwa1123acv3|\
+-	zyxel,wac500h)
++	zyxel,wac500h|\
++	zyxel,nwa220ax-6e)
+ 		status="$(zyxel-bootconfig-ipq show | awk '/image0:/ {print $2}')"
+ 		[ "$status" != "selected" ] && zyxel-bootconfig-ipq --force set image0
+ 		;;

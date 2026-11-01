@@ -1,0 +1,390 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Thu, 1 Oct 2026 18:52:22 +0800
+Subject: [PATCH] qualcommax: ipq50xx: add support for Zyxel WAX640S-6E
+
+The Zyxel WAX640S-6E is a tri-band 802.11ax (Wi-Fi 6E) access point
+based on the Qualcomm AP-MP03.3 reference design. It shares the flash
+layout, Ethernet and port LEDs of the NWA220AX-6E (common
+ipq5018-zyxel-6e.dtsi), but has a QCN6102 for 5 GHz next to the
+QCN9024, which is used for 6 GHz only.
+
+Hardware
+--------
+SoC:    Qualcomm IPQ5018
+RAM:    1G DDR3
+FLASH:  16M SPI-NOR (Macronix MX25U12835F)
+        256M SPI-NAND (Macronix MX35UF2GE4AD)
+ETH:    1x 2.5 Gigabit Ethernet (QCA8081, PoE-in, "uplink")
+        1x Gigabit Ethernet (IPQ5018 internal PHY, "lan1")
+WiFi:   Qualcomm IPQ5018 (2.4GHz 802.11ax, 2x2)
+        Qualcomm QCN6102 (5GHz 802.11ax, 2x2)
+        Qualcomm QCN9024 (6GHz 802.11ax, 4x4)
+BT:     Qualcomm IPQ5018 (BT 5.1, not supported)
+BTN:    1x Reset
+LED:    1x Multi-Color (RGBW, TI LP5562)
+        2x port LEDs on each Ethernet port
+Power:  802.3af/at/bt PoE or 12V/2.5A DC
+
+UART Console
+------------
+4-pin console header on the board.
+
+Settings: 3.3V TTL, 115200 8N1
+
+Installation Web-UI
+-------------------
+The device uses a dual-image setup and OpenWrt can only be installed as
+image 0, as the bootloader always passes "ubi.mtd=rootfs" to the kernel.
+When the currently running stock firmware is image 0, OpenWrt will be
+installed as image 1, fail to boot and the device returns to stock
+firmware. If this happens, install any version of stock firmware so
+that it runs as image 1, before installing OpenWrt. Alternatively, if
+there already is a valid stock firmware in image 1, the "debug
+dual-image show" and "debug dual-image set boot-image image1" commands
+can be used in the stock CLI via serial/SSH/telnet to switch to image 1.
+
+ * Rename the OpenWrt factory image to a shorter name, for example
+   "openwrt.bin" (the stock firmware has a character limit)
+ * In the web interface, go to "Maintenance" -> "File Manager" ->
+   "Firmware Package" (or click the link next to "Firmware Version"
+   under "Device Information" on the dashboard)
+ * Under "Upload File" browse to the renamed OpenWrt factory image and
+   click on "Upload"
+
+The factory image is a UBI image wrapped in an outer FIT carrying the
+device model ID ("74 e1"), which the stock firmware checks before
+accepting it. The stock firmware flashes the "ubi" section into the
+inactive image. On first boot, zyxel-bootconfig marks the OpenWrt image
+as the selected one so the bootloader keeps booting it.
+
+Switch Boot Image
+-----------------
+OpenWrt to stock: "zyxel-bootconfig-ipq set image1"
+Stock to OpenWrt: "debug dual-image set boot-image image0"
+In the bootloader: "atgo 0" / "atgo 1"
+
+Unbrick / Revert to Stock with the Boot Module
+----------------------------------------------
+ * Disconnect the device from power
+ * Configure your machine to 192.168.1.103/24 and start a TFTP server
+ * Put the stock firmware image into the TFTP server root and rename it
+   to "ZLD-current"
+ * Establish a serial connection to the device through the console port
+ * Connect the device to power
+ * When prompted, press a key to abort automatic boot and enter debug
+   mode
+ * Use the "atnz" command to flash the firmware image
+ * Use the "atgo" command to boot from the newly flashed image
+
+Flash layout
+------------
+Same as the NWA220AX-6E: 0:TRAINING, rootfs (image 0), rootfs_1
+(image 1), rootfs_data, myzyxel and logs, as reported by the stock
+kernel. The stock rootfs_data partition is named zyxel_rootfs_data to
+not be picked up as the OpenWrt overlay.
+
+MAC addresses
+-------------
+uplink:     base MAC (mrd partition, offset 0xfff8), matches the label
+lan1:       base MAC + 1
+WiFi 2.4G:  base MAC + 2
+WiFi 5G:    base MAC + 3
+WiFi 6G:    base MAC + 4
+
+Ethernet
+--------
+Same as the NWA220AX-6E, on the NSS-DP/SSDK stack.
+
+LEDs
+----
+The status LED is driven by a TI LP5562 on I2C.
+The port LEDs work as on the NWA220AX-6E: the uplink LEDs are driven by
+the QCA8081 (green at 2.5G, amber at 10/100/1000), the lan1 LEDs by the
+IPQ5018 internal PHY through GPIO46 (green at 1G) and GPIO30 (amber at
+10/100). Both blink on traffic while lit.
+
+WiFi
+----
+The board data (calibration variant "Zyxel-WAX640S-6E") comes from
+the ipq-wifi-zyxel_wax640s-6e package in the zyxel feed.
+
+The QCN6102 is handled by the ath11k QCN6122 support (user PD 2, reset
+GPIO18 passed to the Q6 firmware), the QCN9024 by the ath11k QCN9074
+support. The calibration data of the three radios is in 0:art at
+0x1000 (IPQ5018), 0x26800 (QCN6102) and 0x4c000 (QCN9024).
+The antenna selection GPIOs are held at the level the stock firmware
+sets up at boot; its smart antenna switching is not supported.
+6 GHz requires a country code and WPA3-SAE. Most clients only scan the
+6 GHz preferred scanning channels (PSC: 5, 21, 37, ...), so choose one
+of them instead of relying on ACS.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ .../files/95_apply_bootconfig                 |   3 +-
+ .../boot/dts/qcom/ipq5018-wax640s-6e.dts      | 122 ++++++++++++++++++
+ target/linux/qualcommax/image/ipq50xx.mk      |  22 ++++
+ .../ipq50xx/base-files/etc/board.d/01_leds    |   3 +-
+ .../ipq50xx/base-files/etc/board.d/02_network |   3 +-
+ .../etc/hotplug.d/firmware/11-ath11k-caldata  |  17 ++-
+ .../base-files/lib/upgrade/platform.sh        |   3 +-
+ 7 files changed, 168 insertions(+), 5 deletions(-)
+ create mode 100644 target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-wax640s-6e.dts
+
+diff --git a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
+index 648fec95c0..d7174b5b2e 100644
+--- a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
++++ b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
+@@ -5,7 +5,8 @@ apply_bootconfig() {
+ 	zyxel,nwa210ax|\
+ 	zyxel,nwa1123acv3|\
+ 	zyxel,wac500h|\
+-	zyxel,nwa220ax-6e)
++	zyxel,nwa220ax-6e|\
++	zyxel,wax640s-6e)
+ 		status="$(zyxel-bootconfig-ipq show | awk '/image0:/ {print $2}')"
+ 		[ "$status" != "selected" ] && zyxel-bootconfig-ipq --force set image0
+ 		;;
+diff --git a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-wax640s-6e.dts b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-wax640s-6e.dts
+new file mode 100644
+index 0000000000..dd5e0eec97
+--- /dev/null
++++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-wax640s-6e.dts
+@@ -0,0 +1,122 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++/dts-v1/;
++
++#include "ipq5018-zyxel-6e.dtsi"
++#include "ipq5018-qcn6122.dtsi"
++
++/ {
++	model = "Zyxel WAX640S-6E";
++	compatible = "zyxel,wax640s-6e", "qcom,ipq5018";
++};
++
++&blsp1_i2c3 {
++	status = "okay";
++
++	pinctrl-0 = <&i2c_pins>;
++	pinctrl-names = "default";
++
++	lp5562@30 {
++		compatible = "ti,lp5562";
++		reg = <0x30>;
++		clock-mode = [02];
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		led_status_red: led@0 {
++			reg = <0>;
++			chan-name = "lp5562_red";
++			led-cur = [20];
++			max-cur = [60];
++			color = <LED_COLOR_ID_RED>;
++			function = LED_FUNCTION_STATUS;
++		};
++
++		led_status_green: led@1 {
++			reg = <1>;
++			chan-name = "lp5562_green";
++			led-cur = [20];
++			max-cur = [60];
++			color = <LED_COLOR_ID_GREEN>;
++			function = LED_FUNCTION_STATUS;
++		};
++
++		led_status_blue: led@2 {
++			reg = <2>;
++			chan-name = "lp5562_blue";
++			led-cur = [20];
++			max-cur = [60];
++			color = <LED_COLOR_ID_BLUE>;
++			function = LED_FUNCTION_STATUS;
++		};
++
++		led_status_white: led@3 {
++			reg = <3>;
++			chan-name = "lp5562_white";
++			led-cur = [20];
++			max-cur = [60];
++			color = <LED_COLOR_ID_WHITE>;
++			function = LED_FUNCTION_STATUS;
++		};
++	};
++};
++
++&tlmm {
++	i2c_pins: i2c-state {
++		pins = "gpio25", "gpio26";
++		function = "blsp2_i2c1";
++		drive-strength = <8>;
++		bias-disable;
++	};
++
++	/* antenna direction select, all low as set up by the vendor firmware */
++	ant-dir-hog {
++		gpio-hog;
++		gpios = <14 GPIO_ACTIVE_HIGH>,
++			<16 GPIO_ACTIVE_HIGH>,
++			<17 GPIO_ACTIVE_HIGH>,
++			<19 GPIO_ACTIVE_HIGH>;
++		output-low;
++		line-name = "ant-dir";
++	};
++
++	rst-radio-hog {
++		gpio-hog;
++		gpios = <24 GPIO_ACTIVE_HIGH>,
++			<40 GPIO_ACTIVE_HIGH>;
++		output-high;
++		line-name = "rst-radio";
++	};
++};
++
++&pcie_wifi {
++	qcom,ath11k-calibration-variant = "Zyxel-WAX640S-6E";
++
++	ieee80211-freq-limit = <5945000 7125000>;
++};
++
++&q6v5_wcss {
++	/* QCN6102: PCIe1, user PD 2, reset GPIO18 */
++	boot-args = <0x2 4 2 18 0 0>;
++};
++
++&wifi {
++	status = "okay";
++
++	qcom,rproc = <&q6_wcss_pd1>;
++	qcom,userpd-subsys-name = "q6v5_wcss_userpd1";
++	qcom,ath11k-calibration-variant = "Zyxel-WAX640S-6E";
++	qcom,ath11k-fw-memory-mode = <1>;
++	qcom,bdf-addr = <0x4c400000>;
++};
++
++&wifi1 {
++	status = "okay";
++
++	qcom,rproc = <&q6_wcss_pd2>;
++	qcom,userpd-subsys-name = "q6v5_wcss_userpd2";
++	qcom,ath11k-calibration-variant = "Zyxel-WAX640S-6E";
++	qcom,ath11k-fw-memory-mode = <1>;
++	qcom,bdf-addr = <0x4d100000>;
++	qcom,m3-dump-addr = <0x4df00000>;
++};
+diff --git a/target/linux/qualcommax/image/ipq50xx.mk b/target/linux/qualcommax/image/ipq50xx.mk
+index 1f376a8a31..a30e9d97da 100644
+--- a/target/linux/qualcommax/image/ipq50xx.mk
++++ b/target/linux/qualcommax/image/ipq50xx.mk
+@@ -272,3 +272,25 @@ define Device/zyxel_scr50axe
+ 		ipq-wifi-zyxel_scr50axe
+ endef
+ TARGET_DEVICES += zyxel_scr50axe
++
++define Device/zyxel_wax640s-6e
++	$(call Device/FitImage)
++	$(call Device/UbiFit)
++	DEVICE_VENDOR := Zyxel
++	DEVICE_MODEL := WAX640S-6E
++	SOC := ipq5018
++	BLOCKSIZE := 128k
++	PAGESIZE := 2048
++	NAND_SIZE := 256m
++	IMAGE_SIZE := 63488k
++	DEVICE_DTS_CONFIG := config@mp03.3
++	IMAGES += factory.bin
++	IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-fit-factory-img
++	ZYXEL_MODEL_ID_0 := 74 e1
++	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
++		kmod-ath11k-pci \
++		ath11k-firmware-qcn9074 \
++		kmod-leds-lp5562 \
++		zyxel-bootconfig-ipq
++endef
++TARGET_DEVICES += zyxel_wax640s-6e
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/01_leds b/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/01_leds
+index 54dbfc81d0..6fb3164cfd 100644
+--- a/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/01_leds
++++ b/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/01_leds
+@@ -26,7 +26,8 @@ linksys,mr5500)
+ 	ucidef_set_led_netdev "wan-port-link" "WAN-PORT-LINK" "qca8k-0.0:04:green:wan" "wan" "link_10 link_100 link_1000"
+ 	ucidef_set_led_netdev "wan-port-activity" "WAN-PORT-ACTIVITY" "qca8k-0.0:04:amber:wan" "wan" "tx rx"
+ 	;;
+-zyxel,nwa220ax-6e)
++zyxel,nwa220ax-6e|\
++zyxel,wax640s-6e)
+ 	ucidef_set_led_netdev "uplink-2500" "UPLINK-2500" "90000.mdio-1:10:green:lan" "uplink" "link_2500 tx rx"
+ 	ucidef_set_led_netdev "uplink-1000" "UPLINK-1000" "90000.mdio-1:10:amber:lan" "uplink" "link_10 link_100 link_1000 tx rx"
+ 	ucidef_set_led_netdev "lan1-1000" "LAN1-1000" "88000.mdio-1:07:green:lan" "lan1" "link_1000 tx rx"
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/02_network b/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/02_network
+index dd67af4dee..5cef2120f0 100644
+--- a/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/02_network
++++ b/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/02_network
+@@ -29,7 +29,8 @@ ipq50xx_setup_interfaces()
+ 	yuncore,ax850)
+ 		ucidef_set_interfaces_lan_wan "lan" "wan"
+ 		;;
+-	zyxel,nwa220ax-6e)
++	zyxel,nwa220ax-6e|\
++	zyxel,wax640s-6e)
+ 		ucidef_set_interface_lan "uplink lan1" "dhcp"
+ 		;;
+ 	esac
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
+index 953bfe9e47..6acd19d357 100644
+--- a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
++++ b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
+@@ -57,7 +57,8 @@ case "$FIRMWARE" in
+ 		ath11k_remove_regdomain
+ 		ath11k_set_macflag
+ 		;;
+-	zyxel,nwa220ax-6e)
++	zyxel,nwa220ax-6e|\
++	zyxel,wax640s-6e)
+ 		caldata_extract "0:art" 0x1000 0x20000
+ 		label_mac=$(get_mac_label_dt)
+ 		ath11k_patch_mac $(macaddr_add $label_mac 2) 0
+@@ -109,6 +110,13 @@ case "$FIRMWARE" in
+ 		ath11k_remove_regdomain
+ 		ath11k_set_macflag
+ 		;;
++	zyxel,wax640s-6e)
++		caldata_extract "0:art" 0x26800 0x20000
++		label_mac=$(get_mac_label_dt)
++		ath11k_patch_mac $(macaddr_add $label_mac 3) 0
++		ath11k_remove_regdomain
++		ath11k_set_macflag
++		;;
+ 	esac
+ 	;;
+ "ath11k/QCN6122/hw1.0/cal-ahb-b00b040.wifi.bin")
+@@ -155,6 +163,13 @@ case "$FIRMWARE" in
+ 		ath11k_remove_regdomain
+ 		ath11k_set_macflag
+ 		;;
++	zyxel,wax640s-6e)
++		caldata_extract "0:art" 0x4c000 0x20000
++		label_mac=$(get_mac_label_dt)
++		ath11k_patch_mac $(macaddr_add $label_mac 4) 0
++		ath11k_remove_regdomain
++		ath11k_set_macflag
++		;;
+ 	esac
+ 	;;
+ *)
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh b/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
+index 9df8cf4424..90c82d3983 100644
+--- a/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
++++ b/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
+@@ -230,7 +230,8 @@ platform_do_upgrade() {
+ 		CI_DATA_UBIPART="rootfs"
+ 		nand_do_upgrade "$1"
+ 		;;
+-	zyxel,nwa220ax-6e)
++	zyxel,nwa220ax-6e|\
++	zyxel,wax640s-6e)
+ 		# Zyxel U-Boot always passes ubi.mtd=rootfs, so OpenWrt
+ 		# can only run from image0. The zyxel-bootconfig preinit
+ 		# hook keeps image0 selected in 0:bootconfig{,1}.

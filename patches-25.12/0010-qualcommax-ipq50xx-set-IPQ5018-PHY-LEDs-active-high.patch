@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Tue, 29 Sep 2026 16:47:40 +0800
+Subject: [PATCH] qualcommax: ipq50xx: set IPQ5018 PHY LEDs active high
+
+The IPQ5018 internal PHY is reset in probe, which drops the LED polarity
+set up by the bootloader. The PHY then drives its LEDs active low and
+boards wired for active high LEDs, like the Zyxel NWA220AX-6E, have both
+port LEDs lit without a link and turned off with a link.
+
+Add a patch that sets the LED polarity to active high in config_init,
+like QSDK does and like the QCA808x driver does by default for its LEDs.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ ...03x-set-IPQ5018-PHY-LEDs-active-high.patch | 45 +++++++++++++++++++
+ 1 file changed, 45 insertions(+)
+ create mode 100644 target/linux/qualcommax/patches-6.12/0960-net-phy-at803x-set-IPQ5018-PHY-LEDs-active-high.patch
+
+diff --git a/target/linux/qualcommax/patches-6.12/0960-net-phy-at803x-set-IPQ5018-PHY-LEDs-active-high.patch b/target/linux/qualcommax/patches-6.12/0960-net-phy-at803x-set-IPQ5018-PHY-LEDs-active-high.patch
+new file mode 100644
+index 0000000000..e43b5476c4
+--- /dev/null
++++ b/target/linux/qualcommax/patches-6.12/0960-net-phy-at803x-set-IPQ5018-PHY-LEDs-active-high.patch
+@@ -0,0 +1,45 @@
++From: Mark Chiou <chiouss@gmail.com>
++Subject: [PATCH] net: phy: at803x: set IPQ5018 PHY LEDs active high
++
++The IPQ5018 internal PHY is reset in probe, which drops the LED
++polarity configured by the bootloader. The PHY then comes up with
++active low LEDs and boards wired for active high LEDs, like the
++Zyxel NWA220AX-6E, have their port LEDs lit without a link.
++
++Set the LED polarity to active high in config_init, like QSDK does and
++like the QCA808x driver does by default for its LEDs.
++
++Signed-off-by: Mark Chiou <chiouss@gmail.com>
++---
++--- a/drivers/net/phy/qcom/at803x.c	2026-09-29 15:57:30.312122995 +0800
+++++ b/drivers/net/phy/qcom/at803x.c	2026-09-29 15:57:30.340926517 +0800
++@@ -151,6 +151,10 @@
++ #define IPQ5018_PHY_DEBUG_ANA_LDO_EFUSE_DEFAULT	0x50
++ #define IPQ5018_PHY_DEBUG_ANA_DAC_FILTER	0xa080
++ 
+++#define IPQ5018_PHY_MMD7_LED_POLARITY_CTRL	0x901a
+++/* QSDK sets 0x46 to this register, BIT 6 makes the LEDs active high */
+++#define IPQ5018_PHY_LED_ACTIVE_HIGH		BIT(6)
+++
++ MODULE_DESCRIPTION("Qualcomm Atheros AR803x PHY driver");
++ MODULE_AUTHOR("Matus Ujhelyi");
++ MODULE_LICENSE("GPL");
++@@ -1037,6 +1041,18 @@
++ {
++ 	struct ipq5018_priv *priv = phydev->priv;
++ 	u16 val;
+++	int ret;
+++
+++	/*
+++	 * The PHY is reset in probe, which drops the LED polarity set up by
+++	 * the bootloader. Default to active high LEDs like QSDK does and the
+++	 * QCA808x driver does for its LEDs.
+++	 */
+++	ret = phy_set_bits_mmd(phydev, MDIO_MMD_AN,
+++			       IPQ5018_PHY_MMD7_LED_POLARITY_CTRL,
+++			       IPQ5018_PHY_LED_ACTIVE_HIGH);
+++	if (ret)
+++		return ret;
++ 
++ 	/*
++ 	 * set LDO efuse: first temporarily store ANA_DAC_FILTER value from

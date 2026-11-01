@@ -1,0 +1,216 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Wed, 30 Sep 2026 10:26:15 +0800
+Subject: [PATCH] qualcommax: ipq50xx: add LED support for IPQ5018 PHY
+
+The IPQ5018 internal PHY has three LEDs with the same MMD7 LED control
+registers and hw control pattern as the QCA808x, but the at803x driver
+doesn't register any LED callbacks for it, so its LEDs can't be
+described in DT or driven by the netdev trigger.
+
+Add a patch that adds brightness, blink and netdev trigger hw control
+callbacks, reusing the shared qca808x_led_reg_*() helpers. Like for the
+QCA808x, only bypass the blink check for rules without a speed or
+duplex condition, so that a LED only blinks on traffic while it is lit
+for the configured link speed.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ ...803x-add-LED-support-for-IPQ5018-PHY.patch | 187 ++++++++++++++++++
+ 1 file changed, 187 insertions(+)
+ create mode 100644 target/linux/qualcommax/patches-6.12/0961-net-phy-at803x-add-LED-support-for-IPQ5018-PHY.patch
+
+diff --git a/target/linux/qualcommax/patches-6.12/0961-net-phy-at803x-add-LED-support-for-IPQ5018-PHY.patch b/target/linux/qualcommax/patches-6.12/0961-net-phy-at803x-add-LED-support-for-IPQ5018-PHY.patch
+new file mode 100644
+index 0000000000..9eb462547a
+--- /dev/null
++++ b/target/linux/qualcommax/patches-6.12/0961-net-phy-at803x-add-LED-support-for-IPQ5018-PHY.patch
+@@ -0,0 +1,187 @@
++From: Mark Chiou <chiouss@gmail.com>
++Subject: [PATCH] net: phy: at803x: add LED support for IPQ5018 PHY
++
++The IPQ5018 internal PHY has three LEDs with the same MMD7 LED control
++registers and hw control pattern as the QCA808x: the control registers
++of LED0-2 are at 0x8078/0x8076/0x8074 with the force control registers
++right after them, and the polarity register is at 0x901a.
++
++Add LED callbacks for brightness, blink and netdev trigger hw control,
++reusing the shared qca808x_led_reg_*() helpers. Like for the QCA808x,
++only bypass the blink check for rules without a speed or duplex
++condition, so that a LED only blinks on traffic while it is lit for the
++configured link speed.
++
++The LED polarity is already set to active high in config_init.
++
++Signed-off-by: Mark Chiou <chiouss@gmail.com>
++---
++--- a/drivers/net/phy/qcom/at803x.c
+++++ b/drivers/net/phy/qcom/at803x.c
++@@ -155,6 +155,11 @@
++ /* QSDK sets 0x46 to this register, BIT 6 makes the LEDs active high */
++ #define IPQ5018_PHY_LED_ACTIVE_HIGH		BIT(6)
++ 
+++/* Same LED control registers and hw control pattern as the QCA808x */
+++#define IPQ5018_PHY_MMD7_LED_CTRL(x)		(0x8078 - ((x) * 2))
+++#define IPQ5018_PHY_MMD7_LED_FORCE_CTRL(x)	(0x8079 - ((x) * 2))
+++#define IPQ5018_PHY_MAX_LEDS			3
+++
++ MODULE_DESCRIPTION("Qualcomm Atheros AR803x PHY driver");
++ MODULE_AUTHOR("Matus Ujhelyi");
++ MODULE_LICENSE("GPL");
++@@ -1102,6 +1107,142 @@
++ 			       phydev->link ? IPQ5018_PHY_FIFO_RESET : 0);
++ }
++ 
+++static int ipq5018_led_parse_netdev(unsigned long rules, u16 *offload_trigger)
+++{
+++	u16 speed_duplex = 0;
+++
+++	if (test_bit(TRIGGER_NETDEV_TX, &rules))
+++		*offload_trigger |= QCA808X_LED_TX_BLINK;
+++	if (test_bit(TRIGGER_NETDEV_RX, &rules))
+++		*offload_trigger |= QCA808X_LED_RX_BLINK;
+++	if (test_bit(TRIGGER_NETDEV_LINK_10, &rules))
+++		speed_duplex |= QCA808X_LED_SPEED10_ON;
+++	if (test_bit(TRIGGER_NETDEV_LINK_100, &rules))
+++		speed_duplex |= QCA808X_LED_SPEED100_ON;
+++	if (test_bit(TRIGGER_NETDEV_LINK_1000, &rules))
+++		speed_duplex |= QCA808X_LED_SPEED1000_ON;
+++	if (test_bit(TRIGGER_NETDEV_HALF_DUPLEX, &rules))
+++		speed_duplex |= QCA808X_LED_HALF_DUPLEX_ON;
+++	if (test_bit(TRIGGER_NETDEV_FULL_DUPLEX, &rules))
+++		speed_duplex |= QCA808X_LED_FULL_DUPLEX_ON;
+++
+++	*offload_trigger |= speed_duplex;
+++
+++	if (rules && !*offload_trigger)
+++		return -EOPNOTSUPP;
+++
+++	/*
+++	 * Only bypass the blink check without a speed or duplex condition,
+++	 * so that a LED for e.g. link_1000 doesn't blink on traffic at
+++	 * 100Mbps.
+++	 */
+++	if (!speed_duplex)
+++		*offload_trigger |= QCA808X_LED_BLINK_CHECK_BYPASS;
+++
+++	return 0;
+++}
+++
+++static int ipq5018_led_hw_is_supported(struct phy_device *phydev, u8 index,
+++				       unsigned long rules)
+++{
+++	u16 offload_trigger = 0;
+++
+++	if (index >= IPQ5018_PHY_MAX_LEDS)
+++		return -EINVAL;
+++
+++	return ipq5018_led_parse_netdev(rules, &offload_trigger);
+++}
+++
+++static int ipq5018_led_hw_control_set(struct phy_device *phydev, u8 index,
+++				      unsigned long rules)
+++{
+++	u16 offload_trigger = 0;
+++	int ret;
+++
+++	if (index >= IPQ5018_PHY_MAX_LEDS)
+++		return -EINVAL;
+++
+++	ret = ipq5018_led_parse_netdev(rules, &offload_trigger);
+++	if (ret)
+++		return ret;
+++
+++	ret = qca808x_led_reg_hw_control_enable(phydev,
+++						IPQ5018_PHY_MMD7_LED_FORCE_CTRL(index));
+++	if (ret)
+++		return ret;
+++
+++	return phy_modify_mmd(phydev, MDIO_MMD_AN,
+++			      IPQ5018_PHY_MMD7_LED_CTRL(index),
+++			      QCA808X_LED_PATTERN_MASK, offload_trigger);
+++}
+++
+++static int ipq5018_led_hw_control_get(struct phy_device *phydev, u8 index,
+++				      unsigned long *rules)
+++{
+++	int val;
+++
+++	if (index >= IPQ5018_PHY_MAX_LEDS)
+++		return -EINVAL;
+++
+++	if (!qca808x_led_reg_hw_control_status(phydev,
+++					       IPQ5018_PHY_MMD7_LED_FORCE_CTRL(index)))
+++		return -EINVAL;
+++
+++	val = phy_read_mmd(phydev, MDIO_MMD_AN, IPQ5018_PHY_MMD7_LED_CTRL(index));
+++	if (val < 0)
+++		return val;
+++
+++	if (val & QCA808X_LED_TX_BLINK)
+++		set_bit(TRIGGER_NETDEV_TX, rules);
+++	if (val & QCA808X_LED_RX_BLINK)
+++		set_bit(TRIGGER_NETDEV_RX, rules);
+++	if (val & QCA808X_LED_SPEED10_ON)
+++		set_bit(TRIGGER_NETDEV_LINK_10, rules);
+++	if (val & QCA808X_LED_SPEED100_ON)
+++		set_bit(TRIGGER_NETDEV_LINK_100, rules);
+++	if (val & QCA808X_LED_SPEED1000_ON)
+++		set_bit(TRIGGER_NETDEV_LINK_1000, rules);
+++	if (val & QCA808X_LED_HALF_DUPLEX_ON)
+++		set_bit(TRIGGER_NETDEV_HALF_DUPLEX, rules);
+++	if (val & QCA808X_LED_FULL_DUPLEX_ON)
+++		set_bit(TRIGGER_NETDEV_FULL_DUPLEX, rules);
+++
+++	return 0;
+++}
+++
+++static int ipq5018_led_brightness_set(struct phy_device *phydev, u8 index,
+++				      enum led_brightness value)
+++{
+++	int ret;
+++
+++	if (index >= IPQ5018_PHY_MAX_LEDS)
+++		return -EINVAL;
+++
+++	if (!value) {
+++		ret = phy_clear_bits_mmd(phydev, MDIO_MMD_AN,
+++					 IPQ5018_PHY_MMD7_LED_CTRL(index),
+++					 QCA808X_LED_PATTERN_MASK);
+++		if (ret)
+++			return ret;
+++	}
+++
+++	return qca808x_led_reg_brightness_set(phydev,
+++					      IPQ5018_PHY_MMD7_LED_FORCE_CTRL(index),
+++					      value);
+++}
+++
+++static int ipq5018_led_blink_set(struct phy_device *phydev, u8 index,
+++				 unsigned long *delay_on,
+++				 unsigned long *delay_off)
+++{
+++	if (index >= IPQ5018_PHY_MAX_LEDS)
+++		return -EINVAL;
+++
+++	return qca808x_led_reg_blink_set(phydev,
+++					 IPQ5018_PHY_MMD7_LED_FORCE_CTRL(index),
+++					 delay_on, delay_off);
+++}
+++
++ static int ipq5018_probe(struct phy_device *phydev)
++ {
++ 	struct device *dev = &phydev->mdio.dev;
++@@ -1244,6 +1385,11 @@
++ 	.cable_test_start	= ipq5018_cable_test_start,
++ 	.cable_test_get_status	= qca808x_cable_test_get_status,
++ 	.soft_reset		= genphy_soft_reset,
+++	.led_brightness_set	= ipq5018_led_brightness_set,
+++	.led_blink_set		= ipq5018_led_blink_set,
+++	.led_hw_is_supported	= ipq5018_led_hw_is_supported,
+++	.led_hw_control_set	= ipq5018_led_hw_control_set,
+++	.led_hw_control_get	= ipq5018_led_hw_control_get,
++ }, {
++ 	/* Qualcomm Atheros QCA9561 */
++ 	PHY_ID_MATCH_EXACT(QCA9561_PHY_ID),
