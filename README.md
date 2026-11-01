@@ -1,17 +1,12 @@
 # Zyxel OpenWrt 25.12 overlay
 
-Builds OpenWrt 25.12 for Zyxel access points whose support is still pending
-upstream. The layout follows TIP OpenWiFi's
+Builds OpenWrt 25.12 for Zyxel access points. The layout follows TIP OpenWiFi's
 [wlan-ap](https://github.com/Telecominfraproject/wlan-ap): a pinned OpenWrt
 release, a patch series on top, an extra package feed, and per-device profiles.
 
-| Device | Target | Upstream PR |
-| --- | --- | --- |
-| WAX300H | mediatek/filogic | openwrt/openwrt#25506 |
-| NWA1123ACv3, WAC500, WAC500H | ipq40xx/generic | openwrt/openwrt#25377 |
-
-The patches are the PR commits, rebased onto 25.12. Board data that is still
-pending in openwrt/firmware_qca-wireless#160 ships from `feeds/zyxel`.
+Current added supported models:
+- ipq40xx: NWA1123ACv3/WAC500, WAC500H
+- filogic: WAX300H
 
 ## Layout
 
