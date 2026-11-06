@@ -3,3 +3,7 @@ description: Zyxel overlay feed (packages not yet available in OpenWrt 25.12)
 feeds:
   - name: zyxel
     path: ../../feeds/zyxel
+# The feed is only built into the images and has no package repository,
+# so keep it out of /etc/apk/repositories.d/distfeeds.list.
+diffconfig: |
+  # CONFIG_FEED_zyxel is not set
