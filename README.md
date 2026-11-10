@@ -16,8 +16,9 @@ Current added supported models:
 - `feeds/zyxel/`: packages not available in OpenWrt 25.12
 - `profiles/`: one profile per device, plus shared ones (`release`,
   `openwrt-feeds`, `zyxel-feed`) that device profiles include
-- `setup.py`: clones OpenWrt, applies the patches, regenerates them
-- `scripts/gen_config.py`: writes `feeds.conf` and `.config` for a profile
+- `build.py`: clones OpenWrt and applies the patches, regenerates them,
+  configures the tree for a profile (`feeds.conf`, feeds, `.config`) and
+  builds it
 
 ## Building
 
@@ -26,21 +27,28 @@ Install the
 plus `python3-yaml`, then:
 
 ```sh
-./build.sh zyxel_wax300h
+./build.py zyxel_wax300h
 ```
+
+This clones OpenWrt on the first run (`--clone`) or rebases it afterwards
+(`--rebase`), configures the tree for the profile and runs `make download`
+and `make`. Arguments after `--` go to the final `make`, for example
+`./build.py zyxel_wax300h -- V=s`. The rebase drops commits in `openwrt/`
+that were not exported with `./build.py --update` (see below).
 
 or step by step:
 
 ```sh
-./setup.py --setup          # --rebase on later runs
-cd openwrt
-../scripts/gen_config.py zyxel_wac500h
-make -j$(nproc) download
-make -j$(nproc)
+./build.py --clone          # --rebase on later runs
+./build.py --setup zyxel_wac500h
+make -C openwrt -j$(nproc) download
+make -C openwrt -j$(nproc)
 ```
 
 Images end up in `openwrt/bin/targets/<target>/<subtarget>/`.
-`../scripts/gen_config.py list` shows the available profiles.
+`./build.py --list` shows the available profiles, `./build.py --clean`
+removes the feeds and `.config` from the tree and `./build.py --help`
+lists all actions and options.
 
 ## Image configuration
 
@@ -67,7 +75,7 @@ by flashing a sysupgrade image from this overlay instead.
 add commits there, then regenerate the series:
 
 ```sh
-./setup.py --update
+./build.py --update
 ```
 
 `--rebase` resets `openwrt/` to the pinned tag and re-applies
@@ -75,14 +83,14 @@ add commits there, then regenerate the series:
 `--update` first.
 
 To move to a newer 25.12 release, change `revision` in `config.yml`, run
-`./setup.py --rebase`, resolve any conflicts in `openwrt/` and run
-`./setup.py --update`. Update the feed revisions in
+`./build.py --rebase`, resolve any conflicts in `openwrt/` and run
+`./build.py --update`. Update the feed revisions in
 `profiles/openwrt-feeds.yml` to match that release's `feeds.buildinfo`, and
 compare `profiles/release.yml` with its `config.buildinfo`, including
 `CONFIG_VERSION_REPO`.
 
 ## License
 
-`setup.py` and `scripts/gen_config.py` are derived from wlan-ap and stay
-under its BSD-3-Clause license (see `LICENSE.wlan-ap`). The patches and packages follow OpenWrt's
-licensing (GPL-2.0 unless stated otherwise).
+`build.py` is derived from wlan-ap's `setup.py` and `gen_config.py` and
+stays under its BSD-3-Clause license (see `LICENSE.wlan-ap`). The patches
+and packages follow OpenWrt's licensing (GPL-2.0 unless stated otherwise).
