@@ -1,0 +1,10 @@
+---
+profile: zyxel_wax640s-6e
+target: qualcommax
+subtarget: ipq50xx
+description: Build image for the Zyxel WAX640S-6E
+include:
+  - release
+  - zyxel-feed
+packages:
+  - ipq-wifi-zyxel_wax640s-6e

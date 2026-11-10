@@ -1,0 +1,94 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Tue, 10 Nov 2026 11:56:40 +0800
+Subject: [PATCH] mac80211: ath11k: limit scan channel list messages to 2048
+ bytes
+
+On the Zyxel NWA220AX-6E the QCN9074 serves both 5 GHz and 6 GHz. With
+a country that allows the full 6 GHz band, such as US or the default
+00, its channel list grows to 85 channels and ath11k sends it as one
+2400 byte WMI message. The firmware accepts it, but the next vdev start
+times out and no AP comes up on that radio, on 5 GHz or 6 GHz:
+
+  ath11k_pci 0000:01:00.0: failed to vdev 0 create peer for AP: -110
+  ath11k_pci 0000:01:00.0: Timeout in receiving vdev delete response
+
+Countries that limit 6 GHz to UNII-5 (TW, DE) stay at 49 channels and
+were not affected, nor is a 6 GHz-only radio (60 channels).
+
+Add a patch that keeps each scan channel list message within 2048
+bytes (72 channels). Longer lists use the existing append flag.
+
+Tested on the Zyxel NWA220AX-6E with country US: 5 GHz channel 36 HE80
+and 6 GHz channels 37 and 197 HE80 come up, with the list sent as
+72 + 13 channels.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ ...-channel-list-messages-to-2048-bytes.patch | 56 +++++++++++++++++++
+ 1 file changed, 56 insertions(+)
+ create mode 100644 package/kernel/mac80211/patches/ath11k/953-wifi-ath11k-limit-scan-channel-list-messages-to-2048-bytes.patch
+
+diff --git a/package/kernel/mac80211/patches/ath11k/953-wifi-ath11k-limit-scan-channel-list-messages-to-2048-bytes.patch b/package/kernel/mac80211/patches/ath11k/953-wifi-ath11k-limit-scan-channel-list-messages-to-2048-bytes.patch
+new file mode 100644
+index 0000000000..9e3b203047
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/953-wifi-ath11k-limit-scan-channel-list-messages-to-2048-bytes.patch
+@@ -0,0 +1,56 @@
++From: Mark Chiou <chiouss@gmail.com>
++Subject: [PATCH] wifi: ath11k: limit scan channel list messages to 2048 bytes
++
++ath11k sends the channel list in as few WMI_SCAN_CHAN_LIST_CMDID
++messages as the WMI endpoint's max_msg_len allows, and marks the
++following ones with WMI_APPEND_TO_EXISTING_CHAN_LIST_FLAG.
++
++QCN9074 firmware 0x290b8862 (target credit size 4096) does not handle a
++list larger than about 2 KB in one message. On a QCN9074 that covers
++5 GHz and 6 GHz, a country with the full 6 GHz band (for example US)
++gives 85 channels, sent as one 2400 byte message. The firmware accepts
++it, but the next vdev start never completes and the AP fails to come
++up on any band:
++
++  ath11k_pci 0000:01:00.0: failed to vdev 0 create peer for AP: -110
++  ath11k_pci 0000:01:00.0: Timeout in receiving vdev delete response
++
++Lists of up to 72 channels (2036 bytes) work. Keep every message
++within 2048 bytes, so the 85 channels go out as 72 + 13 with the append
++flag. Lists that fit in one message are sent as before.
++
++Signed-off-by: Mark Chiou <chiouss@gmail.com>
++---
++--- a/drivers/net/wireless/ath/ath11k/wmi.c
+++++ b/drivers/net/wireless/ath/ath11k/wmi.c
++@@ -2552,6 +2552,12 @@ int ath11k_wmi_send_scan_stop_cmd(struct
++ 	return ret;
++ }
++ 
+++/*
+++ * QCN9074 firmware hangs on a scan channel list larger than this, although it
+++ * accepts bigger WMI messages. Longer lists are sent in several messages.
+++ */
+++#define ATH11K_WMI_SCAN_CHAN_LIST_MAX_LEN	2048
+++
++ int ath11k_wmi_send_scan_chan_list_cmd(struct ath11k *ar,
++ 				       struct scan_chan_list_params *chan_list)
++ {
++@@ -2564,13 +2570,14 @@ int ath11k_wmi_send_scan_chan_list_cmd(s
++ 	void *ptr;
++ 	int i, ret, len;
++ 	u16 num_send_chans, num_sends = 0, max_chan_limit = 0;
++-	u32 *reg1, *reg2;
+++	u32 *reg1, *reg2, max_msg_len;
++ 
++ 	tchan_info = chan_list->ch_param;
++ 	while (chan_list->nallchans) {
++ 		len = sizeof(*cmd) + TLV_HDR_SIZE;
++-		max_chan_limit = (wmi->wmi_ab->max_msg_len[ar->pdev_idx] - len) /
++-			sizeof(*chan_info);
+++		max_msg_len = min_t(u32, wmi->wmi_ab->max_msg_len[ar->pdev_idx],
+++				    ATH11K_WMI_SCAN_CHAN_LIST_MAX_LEN);
+++		max_chan_limit = (max_msg_len - len) / sizeof(*chan_info);
++ 
++ 		if (chan_list->nallchans > max_chan_limit)
++ 			num_send_chans = max_chan_limit;

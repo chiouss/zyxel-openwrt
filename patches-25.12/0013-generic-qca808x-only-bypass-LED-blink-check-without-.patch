@@ -1,0 +1,68 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Wed, 30 Sep 2026 10:04:58 +0800
+Subject: [PATCH] generic: qca808x: only bypass LED blink check without
+ speed/duplex rules
+
+qca808x_led_parse_netdev() always sets BLINK_CHECK_BYPASS, which makes
+the LED follow the TX/RX blink trigger even when the speed or duplex
+condition of the rule doesn't match. This is needed for rules with only
+tx and/or rx, but for a rule like "link_2500 tx rx" the LED is off at a
+1000Mbps link and still blinks on traffic.
+
+Add a pending patch that only sets BLINK_CHECK_BYPASS when the rule has
+no speed or duplex condition, so that a LED only blinks on traffic
+while it is lit for the configured link speed or duplex.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ ...ink-check-without-speed-duplex-rules.patch | 39 +++++++++++++++++++
+ 1 file changed, 39 insertions(+)
+ create mode 100644 target/linux/generic/pending-6.12/722-net-phy-qca808x-only-bypass-blink-check-without-speed-duplex-rules.patch
+
+diff --git a/target/linux/generic/pending-6.12/722-net-phy-qca808x-only-bypass-blink-check-without-speed-duplex-rules.patch b/target/linux/generic/pending-6.12/722-net-phy-qca808x-only-bypass-blink-check-without-speed-duplex-rules.patch
+new file mode 100644
+index 0000000000..7be8f2b8e2
+--- /dev/null
++++ b/target/linux/generic/pending-6.12/722-net-phy-qca808x-only-bypass-blink-check-without-speed-duplex-rules.patch
+@@ -0,0 +1,39 @@
++From: Mark Chiou <chiouss@gmail.com>
++Subject: [PATCH] net: phy: qca808x: only bypass blink check without speed/duplex rules
++
++qca808x_led_parse_netdev() always sets BLINK_CHECK_BYPASS, which makes
++the LED follow the TX/RX blink trigger even when the speed or duplex
++condition of the rule doesn't match. This is needed for rules with only
++tx and/or rx, but for a rule like "link_2500 tx rx" the LED is off at a
++1000Mbps link and still blinks on traffic.
++
++Only set BLINK_CHECK_BYPASS when the rule has no speed or duplex
++condition, so that a LED only blinks on traffic while it is lit for
++the configured link speed or duplex.
++
++Signed-off-by: Mark Chiou <chiouss@gmail.com>
++---
++--- a/drivers/net/phy/qcom/qca808x.c
+++++ b/drivers/net/phy/qcom/qca808x.c
++@@ -440,10 +440,18 @@
++ 	if (rules && !*offload_trigger)
++ 		return -EOPNOTSUPP;
++ 
++-	/* Enable BLINK_CHECK_BYPASS by default to make the LED
++-	 * blink even with duplex or speed mode not enabled.
+++	/* Enable BLINK_CHECK_BYPASS to make the LED blink even with duplex
+++	 * or speed mode not enabled. When a speed or duplex mode is enabled,
+++	 * only blink while that condition matches, so that e.g. a LED for
+++	 * link_2500 doesn't blink on traffic at 1000Mbps.
++ 	 */
++-	*offload_trigger |= QCA808X_LED_BLINK_CHECK_BYPASS;
+++	if (!(*offload_trigger & (QCA808X_LED_SPEED10_ON |
+++				  QCA808X_LED_SPEED100_ON |
+++				  QCA808X_LED_SPEED1000_ON |
+++				  QCA808X_LED_SPEED2500_ON |
+++				  QCA808X_LED_HALF_DUPLEX_ON |
+++				  QCA808X_LED_FULL_DUPLEX_ON)))
+++		*offload_trigger |= QCA808X_LED_BLINK_CHECK_BYPASS;
++ 
++ 	return 0;
++ }
