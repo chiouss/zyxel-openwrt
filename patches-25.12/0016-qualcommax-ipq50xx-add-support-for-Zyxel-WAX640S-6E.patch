@@ -113,6 +113,14 @@ The QCN6102 is handled by the ath11k QCN6122 support (user PD 2, reset
 GPIO18 passed to the Q6 firmware), the QCN9024 by the ath11k QCN9074
 support. The calibration data of the three radios is in 0:art at
 0x1000 (IPQ5018), 0x26800 (QCN6102) and 0x4c000 (QCN9024).
+The QCN6102 signals its interrupts as fixed SPIs of a GICv2m frame.
+With the default first frame they overlapped the MSIs the kernel hands
+out to the PCIe bus of the QCN9024 from the same frame: the PCIe root
+port shared an interrupt with the QCN6102 and a reboot warned about a
+leaked "ce0" handler. Use the second frame for the QCN6102, as the
+second QCN6122 instance in ipq5018-qcn6122.dtsi does. The radio then
+appears as b00b040.wifi, so its calibration data is extracted for that
+name and an existing wireless config is migrated to the new path.
 The antenna selection GPIOs are held at the level the stock firmware
 sets up at boot; its smart antenna switching is not supported.
 6 GHz requires a country code and WPA3-SAE. Most clients only scan the
@@ -123,13 +131,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Signed-off-by: Mark Chiou <chiouss@gmail.com>
 ---
  .../files/95_apply_bootconfig                 |   3 +-
- .../boot/dts/qcom/ipq5018-wax640s-6e.dts      | 122 ++++++++++++++++++
- target/linux/qualcommax/image/ipq50xx.mk      |  22 ++++
+ .../boot/dts/qcom/ipq5018-wax640s-6e.dts      | 141 ++++++++++++++++++
+ target/linux/qualcommax/image/ipq50xx.mk      |  22 +++
  .../ipq50xx/base-files/etc/board.d/01_leds    |   3 +-
  .../ipq50xx/base-files/etc/board.d/02_network |   3 +-
  .../etc/hotplug.d/firmware/11-ath11k-caldata  |  17 ++-
+ .../etc/hotplug.d/ieee80211/05-wifi-migrate   |   3 +
  .../base-files/lib/upgrade/platform.sh        |   3 +-
- 7 files changed, 168 insertions(+), 5 deletions(-)
+ 8 files changed, 190 insertions(+), 5 deletions(-)
  create mode 100644 target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-wax640s-6e.dts
 
 diff --git a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
@@ -148,10 +157,10 @@ index 648fec95c0..d7174b5b2e 100644
  		;;
 diff --git a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-wax640s-6e.dts b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-wax640s-6e.dts
 new file mode 100644
-index 0000000000..dd5e0eec97
+index 0000000000..5434a78bdc
 --- /dev/null
 +++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-wax640s-6e.dts
-@@ -0,0 +1,122 @@
+@@ -0,0 +1,141 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 +
 +/dts-v1/;
@@ -267,6 +276,25 @@ index 0000000000..dd5e0eec97
 +&wifi1 {
 +	status = "okay";
 +
++	/*
++	 * PCIe MSIs (QCN9024) are allocated from the first GICv2m frame,
++	 * so signal the QCN6102 interrupts through the second one.
++	 */
++	reg = <0x0b00b040 0x0>;
++	interrupts = <GIC_SPI 448 IRQ_TYPE_EDGE_RISING>,
++		     <GIC_SPI 449 IRQ_TYPE_EDGE_RISING>,
++		     <GIC_SPI 450 IRQ_TYPE_EDGE_RISING>,
++		     <GIC_SPI 451 IRQ_TYPE_EDGE_RISING>,
++		     <GIC_SPI 452 IRQ_TYPE_EDGE_RISING>,
++		     <GIC_SPI 453 IRQ_TYPE_EDGE_RISING>,
++		     <GIC_SPI 454 IRQ_TYPE_EDGE_RISING>,
++		     <GIC_SPI 455 IRQ_TYPE_EDGE_RISING>,
++		     <GIC_SPI 456 IRQ_TYPE_EDGE_RISING>,
++		     <GIC_SPI 457 IRQ_TYPE_EDGE_RISING>,
++		     <GIC_SPI 458 IRQ_TYPE_EDGE_RISING>,
++		     <GIC_SPI 459 IRQ_TYPE_EDGE_RISING>,
++		     <GIC_SPI 460 IRQ_TYPE_EDGE_RISING>;
++
 +	qcom,rproc = <&q6_wcss_pd2>;
 +	qcom,userpd-subsys-name = "q6v5_wcss_userpd2";
 +	qcom,ath11k-calibration-variant = "Zyxel-WAX640S-6E";
@@ -333,7 +361,7 @@ index dd67af4dee..5cef2120f0 100644
  		;;
  	esac
 diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
-index 953bfe9e47..6acd19d357 100644
+index 953bfe9e47..3739bfc71c 100644
 --- a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
 +++ b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
 @@ -57,7 +57,8 @@ case "$FIRMWARE" in
@@ -346,8 +374,8 @@ index 953bfe9e47..6acd19d357 100644
  		caldata_extract "0:art" 0x1000 0x20000
  		label_mac=$(get_mac_label_dt)
  		ath11k_patch_mac $(macaddr_add $label_mac 2) 0
-@@ -109,6 +110,13 @@ case "$FIRMWARE" in
- 		ath11k_remove_regdomain
+@@ -125,6 +126,13 @@ case "$FIRMWARE" in
+ 		ath11k_patch_mac $wlan_mac 0
  		ath11k_set_macflag
  		;;
 +	zyxel,wax640s-6e)
@@ -359,7 +387,7 @@ index 953bfe9e47..6acd19d357 100644
 +		;;
  	esac
  	;;
- "ath11k/QCN6122/hw1.0/cal-ahb-b00b040.wifi.bin")
+ "ath11k/QCN9074/hw1.0/cal-pci-0000:01:00.0.bin")
 @@ -155,6 +163,13 @@ case "$FIRMWARE" in
  		ath11k_remove_regdomain
  		ath11k_set_macflag
@@ -374,6 +402,20 @@ index 953bfe9e47..6acd19d357 100644
  	esac
  	;;
  *)
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/ieee80211/05-wifi-migrate b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/ieee80211/05-wifi-migrate
+index d3460db582..71471a21ae 100644
+--- a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/ieee80211/05-wifi-migrate
++++ b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/ieee80211/05-wifi-migrate
+@@ -60,6 +60,9 @@ linksys,mx5500|\
+ linksys,spnmx56)
+ 	migrate_radio 'soc@0/a0000000.pcie/pci0001:00/0001:00:00.0/0001:01:00.0' 'soc@0/a0000000.pcie/pci0000:00/0000:00:00.0/0000:01:00.0'
+ 	;;
++zyxel,wax640s-6e)
++	migrate_radio 'platform/soc@0/b00a040.wifi' 'platform/soc@0/b00b040.wifi'
++	;;
+ esac
+ 
+ $WIRELESS_CHANGED && uci commit wireless
 diff --git a/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh b/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
 index 9df8cf4424..90c82d3983 100644
 --- a/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
