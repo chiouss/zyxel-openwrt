@@ -7,7 +7,7 @@ release, a patch series on top, an extra package feed, and per-device profiles.
 Current added supported models:
 - ipq40xx: NWA1123ACv3/WAC500, WAC500H
 - ipq50xx: NWA220AX-6E/WAX620D-6E, WAX640S-6E
-- ipq807x: NWA110AX/WAX510D, NWA210AX/WAX610D/WAX630S
+- ipq807x: NWA110AX/WAX510D, NWA210AX/WAX610D/WAX630S, WAX650S
 - filogic: WAX300H
 
 ## Layout

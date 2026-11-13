@@ -1,0 +1,10 @@
+---
+profile: zyxel_wax650s
+target: qualcommax
+subtarget: ipq807x
+description: Build image for the Zyxel WAX650S
+include:
+  - release
+  - zyxel-feed
+packages:
+  - ipq-wifi-zyxel_wax650s

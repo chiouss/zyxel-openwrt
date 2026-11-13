@@ -1,0 +1,358 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Fri, 13 Nov 2026 16:23:51 +0800
+Subject: [PATCH] qualcommax: ipq807x: add support for Zyxel WAX650S
+
+The Zyxel WAX650S is an 802.11ax access point with a 5 GbE uplink. It is
+built like the NWA210AX (flash layout, LEDs, reset button, 1 GbE port
+and dual-image boot), with an IPQ8072A and an AQR114C uplink PHY.
+
+Hardware
+--------
+SoC:      Qualcomm IPQ8072A
+RAM:      1 GiB DDR3
+Flash:    8 MiB SPI-NOR, 256 MiB SPI-NAND
+WLAN:     2.4 GHz QCN5024 4x4, 5 GHz QCN5054 4x4
+          QCA9889 1x1 on PCIe (uncalibrated, used by the stock firmware
+          for zero-wait DFS only; left disabled)
+Ethernet: Uplink: 5 GbE AQR114C (USXGMII), 802.3at/bt PoE input
+          LAN1: 1 GbE QCA8033
+LEDs:     4-colour LP5562, 2 GPIO LEDs
+Buttons:  Reset
+Power:    12 V DC or PoE
+
+The smart antenna, the CC2640R2F Bluetooth module and the stock PoE
+power modes are not supported. The stock firmware drops both radios to
+2 TX chains when powered by 802.3at; OpenWrt runs them at 4x4, so use
+802.3bt or the DC jack.
+
+Uplink PHY firmware
+-------------------
+The AQR114C has no flash of its own. The stock bootloader loads its
+firmware on every boot from the "ethphyfw" UBI volume of the "rootfs"
+partition, the one OpenWrt is installed to. The OpenWrt image carries
+an "ethphyfw" volume with a placeholder; on first boot a preinit script
+copies the firmware from the stock image in "rootfs_1", which the
+installation keeps, and reboots once. Sysupgrade keeps the volume.
+Until then, and if the stock image is gone, only LAN1 works. The PHY
+has no reset GPIO in the device tree, as a reset would clear the
+firmware.
+
+The volume comes first in the UBI image, so the root filesystem is
+ubiblock0_2.
+
+Installation, Switch Boot Image and MAC addresses are as on the
+NWA210AX; the factory image carries model ID 54 e1.
+
+The firmware itself is not redistributable, so the image cannot ship
+it.
+
+Tested on a WAX650S: the first boot copies the PHY firmware and
+reboots, the bootloader then starts the PHY and the uplink links at
+1 GbE (the only speed the switch port offered), and both radios
+beacon with the new board data. Not yet tested: 2.5/5 GbE, LAN1 and
+Wi-Fi clients.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ .../uboot-envtools/files/qualcommax_ipq807x   |  3 +-
+ .../files/95_apply_bootconfig                 |  1 +
+ .../arm64/boot/dts/qcom/ipq8072-wax650s.dts   | 84 ++++++++++++++++++
+ target/linux/qualcommax/image/ipq807x.mk      | 11 +++
+ .../qualcommax/image/zyxel-ethphyfw.stub      |  1 +
+ .../ipq807x/base-files/etc/board.d/02_network |  6 +-
+ .../etc/hotplug.d/firmware/11-ath11k-caldata  |  3 +-
+ .../base-files/lib/preinit/96_zyxel_ethphyfw  | 86 +++++++++++++++++++
+ .../base-files/lib/upgrade/platform.sh        |  3 +-
+ 9 files changed, 193 insertions(+), 5 deletions(-)
+ create mode 100644 target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8072-wax650s.dts
+ create mode 100644 target/linux/qualcommax/image/zyxel-ethphyfw.stub
+ create mode 100644 target/linux/qualcommax/ipq807x/base-files/lib/preinit/96_zyxel_ethphyfw
+
+diff --git a/package/boot/uboot-tools/uboot-envtools/files/qualcommax_ipq807x b/package/boot/uboot-tools/uboot-envtools/files/qualcommax_ipq807x
+index 9da821b9e0..2b2401a42e 100644
+--- a/package/boot/uboot-tools/uboot-envtools/files/qualcommax_ipq807x
++++ b/package/boot/uboot-tools/uboot-envtools/files/qualcommax_ipq807x
+@@ -13,7 +13,8 @@ compex,wpq873|\
+ edgecore,eap102|\
+ zyxel,nbg7815|\
+ zyxel,nwa110ax|\
+-zyxel,nwa210ax)
++zyxel,nwa210ax|\
++zyxel,wax650s)
+ 	ubootenv_add_mtd "0:appsblenv" "0x0" "0x10000" "0x10000"
+ 	;;
+ asus,rt-ax89x|\
+diff --git a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
+index 709fc67c52..086d3a13a7 100644
+--- a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
++++ b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
+@@ -4,6 +4,7 @@ apply_bootconfig() {
+ 	case $(board_name) in
+ 	zyxel,nwa110ax|\
+ 	zyxel,nwa210ax|\
++	zyxel,wax650s|\
+ 	zyxel,nwa1123acv3|\
+ 	zyxel,wac500h|\
+ 	zyxel,nwa220ax-6e|\
+diff --git a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8072-wax650s.dts b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8072-wax650s.dts
+new file mode 100644
+index 0000000000..a794f08b75
+--- /dev/null
++++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8072-wax650s.dts
+@@ -0,0 +1,84 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++/dts-v1/;
++
++#include "ipq807x-nwax10ax.dtsi"
++
++/ {
++	model = "Zyxel WAX650S";
++	compatible = "zyxel,wax650s", "qcom,ipq8074";
++
++	aliases {
++		ethernet0 = &dp5_syn;
++		ethernet1 = &dp1;
++		label-mac-device = &dp5_syn;
++	};
++
++	chosen {
++		/* the ethphyfw UBI volume comes first, see the image recipe */
++		bootargs-append = " root=/dev/ubiblock0_2 loglevel=7";
++	};
++
++	leds {
++		compatible = "gpio-leds";
++
++		gpio_green {
++			gpios = <&tlmm 50 GPIO_ACTIVE_HIGH>;
++			default-state = "off";
++			color = <LED_COLOR_ID_GREEN>;
++			function = LED_FUNCTION_STATUS;
++		};
++
++		gpio_red {
++			gpios = <&tlmm 51 GPIO_ACTIVE_HIGH>;
++			default-state = "off";
++			color = <LED_COLOR_ID_RED>;
++			function = LED_FUNCTION_STATUS;
++		};
++	};
++};
++
++&switch {
++	switch_lan_bmp = <(ESS_PORT1 | ESS_PORT5)>;
++	switch_mac_mode = <MAC_MODE_SGMII_CHANNEL0>;
++	switch_mac_mode1 = <MAC_MODE_USXGMII>;
++};
++
++&phyinfo {
++	port@5 {
++		port_id = <5>;
++		phy_address = <8>;
++		ethernet-phy-ieee802.3-c45;
++	};
++};
++
++&mdio {
++	/*
++	 * The stock bootloader loads the PHY firmware from the "ethphyfw"
++	 * UBI volume on every boot. Leave out the reset GPIO (63), as a
++	 * reset would clear it.
++	 */
++	aqr114c: ethernet-phy@8 {
++		compatible = "ethernet-phy-ieee802.3-c45";
++		reg = <8>;
++	};
++};
++
++&dp1 {
++	label = "lan1";
++	nvmem-cell-names = "mac-address";
++	nvmem-cells = <&label_mac 1>;
++};
++
++&dp5_syn {
++	status = "okay";
++	phy-handle = <&aqr114c>;
++	phy-mode = "usxgmii";
++	label = "uplink";
++	nvmem-cell-names = "mac-address";
++	nvmem-cells = <&label_mac 0>;
++};
++
++&wifi {
++	qcom,ath11k-calibration-variant = "Zyxel-WAX650S";
++};
+diff --git a/target/linux/qualcommax/image/ipq807x.mk b/target/linux/qualcommax/image/ipq807x.mk
+index a7e5e7fa07..92e91b6304 100644
+--- a/target/linux/qualcommax/image/ipq807x.mk
++++ b/target/linux/qualcommax/image/ipq807x.mk
+@@ -576,3 +576,14 @@ define Device/zyxel_nwa210ax
+ 	$(call Device/zyxel-fit-factory-img,5c e1,5b e1,6e e1)
+ endef
+ TARGET_DEVICES += zyxel_nwa210ax
++
++define Device/zyxel_wax650s
++	$(call Device/zyxel_nwax10ax_common)
++	DEVICE_MODEL := WAX650S
++	DEVICE_DTS_CONFIG := config@hk09
++	SOC := ipq8072
++	DEVICE_PACKAGES := zyxel-bootconfig-ipq kmod-leds-lp5562
++	UBINIZE_PARTS := ethphyfw=$(CURDIR)/zyxel-ethphyfw.stub=1
++	$(call Device/zyxel-fit-factory-img,54 e1)
++endef
++TARGET_DEVICES += zyxel_wax650s
+diff --git a/target/linux/qualcommax/image/zyxel-ethphyfw.stub b/target/linux/qualcommax/image/zyxel-ethphyfw.stub
+new file mode 100644
+index 0000000000..25b844b0e2
+--- /dev/null
++++ b/target/linux/qualcommax/image/zyxel-ethphyfw.stub
+@@ -0,0 +1 @@
++Placeholder for the Zyxel PHY firmware, filled from the stock firmware on first boot.
+diff --git a/target/linux/qualcommax/ipq807x/base-files/etc/board.d/02_network b/target/linux/qualcommax/ipq807x/base-files/etc/board.d/02_network
+index eaa8d28a05..272fe5fd1a 100644
+--- a/target/linux/qualcommax/ipq807x/base-files/etc/board.d/02_network
++++ b/target/linux/qualcommax/ipq807x/base-files/etc/board.d/02_network
+@@ -74,7 +74,8 @@ ipq807x_setup_interfaces()
+ 	zyxel,nwa110ax)
+ 		ucidef_set_interface_lan "uplink" "dhcp"
+ 		;;
+-	zyxel,nwa210ax)
++	zyxel,nwa210ax|\
++	zyxel,wax650s)
+ 		ucidef_set_interface_lan "uplink lan1" "dhcp"
+ 		;;
+ 	*)
+@@ -107,7 +108,8 @@ ipq807x_setup_macs()
+ 		lan_mac=$label_mac
+ 		;;
+ 	zyxel,nwa110ax|\
+-	zyxel,nwa210ax)
++	zyxel,nwa210ax|\
++	zyxel,wax650s)
+ 		label_mac=$(get_mac_label_dt)
+ 		lan_mac=$label_mac
+ 		;;
+diff --git a/target/linux/qualcommax/ipq807x/base-files/etc/hotplug.d/firmware/11-ath11k-caldata b/target/linux/qualcommax/ipq807x/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
+index ac5d160145..ea690863b7 100644
+--- a/target/linux/qualcommax/ipq807x/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
++++ b/target/linux/qualcommax/ipq807x/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
+@@ -133,7 +133,8 @@ case "$FIRMWARE" in
+ 		ath11k_patch_mac $(macaddr_add $label_mac 1) 1
+ 		ath11k_set_macflag
+ 		;;
+-	zyxel,nwa210ax)
++	zyxel,nwa210ax|\
++	zyxel,wax650s)
+ 		caldata_extract "0:art" 0x1000 0x20000
+ 		label_mac=$(get_mac_label)
+ 		ath11k_patch_mac $(macaddr_add $label_mac 3) 0
+diff --git a/target/linux/qualcommax/ipq807x/base-files/lib/preinit/96_zyxel_ethphyfw b/target/linux/qualcommax/ipq807x/base-files/lib/preinit/96_zyxel_ethphyfw
+new file mode 100644
+index 0000000000..d35bdbd05a
+--- /dev/null
++++ b/target/linux/qualcommax/ipq807x/base-files/lib/preinit/96_zyxel_ethphyfw
+@@ -0,0 +1,86 @@
++#!/bin/sh
++#
++# The Zyxel WAX650S uplink PHY (AQR114C) runs firmware that the stock
++# bootloader loads on every boot from the "ethphyfw" UBI volume of the
++# "rootfs" partition. The OpenWrt image carries an empty "ethphyfw" volume:
++# fill it from the stock firmware in "rootfs_1" and reboot once, so the
++# bootloader can start the PHY.
++
++. /lib/functions.sh
++
++zyxel_ethphyfw_vol() {
++	local ubi="$1" name="$2" vol dev
++
++	for vol in /sys/class/ubi/${ubi}_*; do
++		[ "$(cat "$vol/name" 2>/dev/null)" = "$name" ] || continue
++
++		# Nothing adds device nodes in preinit for a UBI device
++		# attached after procd populated /dev.
++		dev="/dev/${vol##*/}"
++		[ -c "$dev" ] || mknod "$dev" c $(tr ':' ' ' < "$vol/dev") || \
++			return 1
++		echo "$dev"
++		return 0
++	done
++	return 1
++}
++
++# Print the payload size of a valid PHY firmware MBN header (image type 0x13,
++# version 3), nothing otherwise.
++zyxel_ethphyfw_size() {
++	local type vsn src dest size
++
++	read -r type vsn src dest size <<-EOF
++		$(dd if="$1" bs=40 count=1 2>/dev/null | hexdump -v -e '5/4 "%u " "\n"')
++	EOF
++	[ "$type" = 19 ] && [ "$vsn" = 3 ] && [ "$size" -gt 0 ] 2>/dev/null && \
++		[ "$size" -lt 1048000 ] && echo "$size"
++}
++
++zyxel_ethphyfw_log() {
++	echo "zyxel-ethphyfw: $*" > /dev/kmsg
++}
++
++zyxel_ethphyfw_copy() {
++	local dst="$1" mtd src size ret=1
++
++	mtd=$(find_mtd_index rootfs_1)
++	[ -n "$mtd" ] || return 1
++	ubiattach -m "$mtd" -d 7 >/dev/null 2>&1 || return 1
++
++	src=$(zyxel_ethphyfw_vol ubi7 ethphyfw)
++	[ -n "$src" ] && size=$(zyxel_ethphyfw_size "$src")
++	if [ -n "$size" ]; then
++		head -c $((size + 40)) "$src" > /tmp/ethphyfw.mbn && \
++			ubiupdatevol "$dst" /tmp/ethphyfw.mbn && ret=0
++		rm -f /tmp/ethphyfw.mbn
++	fi
++
++	ubidetach -d 7 >/dev/null 2>&1
++	[ -n "$src" ] && rm -f "$src"
++	return $ret
++}
++
++zyxel_ethphyfw() {
++	local dst
++
++	case "$(board_name)" in
++	zyxel,wax650s)
++		;;
++	*)
++		return 0
++		;;
++	esac
++
++	dst=$(zyxel_ethphyfw_vol ubi0 ethphyfw) || return 0
++	[ -n "$(zyxel_ethphyfw_size "$dst")" ] && return 0
++
++	if zyxel_ethphyfw_copy "$dst"; then
++		zyxel_ethphyfw_log "copied from the stock firmware, rebooting"
++		sync
++		reboot -f
++	fi
++	zyxel_ethphyfw_log "no firmware in the stock image, the uplink port stays down"
++}
++
++[ "$INITRAMFS" = "1" ] || boot_hook_add preinit_main zyxel_ethphyfw
+diff --git a/target/linux/qualcommax/ipq807x/base-files/lib/upgrade/platform.sh b/target/linux/qualcommax/ipq807x/base-files/lib/upgrade/platform.sh
+index f5a36a1c94..6d28e2d4a3 100644
+--- a/target/linux/qualcommax/ipq807x/base-files/lib/upgrade/platform.sh
++++ b/target/linux/qualcommax/ipq807x/base-files/lib/upgrade/platform.sh
+@@ -186,7 +186,8 @@ platform_do_upgrade() {
+ 	netgear,wax620|\
+ 	netgear,wax630|\
+ 	zyxel,nwa110ax|\
+-	zyxel,nwa210ax)
++	zyxel,nwa210ax|\
++	zyxel,wax650s)
+ 		nand_do_upgrade "$1"
+ 		;;
+ 	asus,rt-ax89x)
