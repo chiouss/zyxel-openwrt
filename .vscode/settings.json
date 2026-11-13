@@ -1,0 +1,27 @@
+{
+    // The only first-party Python here is build.py. The openwrt/ checkout
+    // (plus its feeds, build_dir and staging_dir) holds thousands of
+    // third-party .py files that Pylance would otherwise index.
+    "python.analysis.exclude": [
+        "openwrt",
+        "feeds",
+        "patches-*",
+        "profiles",
+        "**/__pycache__",
+        "**/.ruff_cache",
+        "**/.git",
+        "**/node_modules"
+    ],
+    "python.analysis.diagnosticMode": "openFilesOnly",
+    "python.analysis.indexing": false,
+
+    // Keep the file watcher off the build output trees.
+    "files.watcherExclude": {
+        "**/openwrt/build_dir/**": true,
+        "**/openwrt/staging_dir/**": true,
+        "**/openwrt/bin/**": true,
+        "**/openwrt/dl/**": true,
+        "**/openwrt/tmp/**": true,
+        "**/openwrt/feeds/**": true
+    }
+}
