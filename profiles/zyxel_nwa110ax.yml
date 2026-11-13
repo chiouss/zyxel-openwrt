@@ -1,0 +1,10 @@
+---
+profile: zyxel_nwa110ax
+target: qualcommax
+subtarget: ipq807x
+description: Build image for the Zyxel NWA110AX and WAX510D
+include:
+  - release
+  - zyxel-feed
+packages:
+  - ipq-wifi-zyxel_nwa110ax

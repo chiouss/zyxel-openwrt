@@ -1,0 +1,10 @@
+---
+profile: zyxel_nwa210ax
+target: qualcommax
+subtarget: ipq807x
+description: Build image for the Zyxel NWA210AX, WAX610D and WAX630S
+include:
+  - release
+  - zyxel-feed
+packages:
+  - ipq-wifi-zyxel_nwa210ax

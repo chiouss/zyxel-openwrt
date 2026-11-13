@@ -1,0 +1,84 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Fri, 13 Nov 2026 14:32:46 +0800
+Subject: [PATCH] qualcommax: ipq807x: add Zyxel WAX510D, WAX610D and WAX630S
+
+The Zyxel WAX610D and WAX630S are the same hardware as the NWA210AX,
+and the WAX510D is the same hardware as the NWA110AX: the stock firmware
+builds them from the same board configurations (WAX610 and WAX510) and
+only changes the model ID, the product name and the Wi-Fi board data
+power tables. The WAX630S smart antenna slot is not supported.
+
+Add them as alternative models. Their stock firmware only accepts a
+factory image that lists its own model ID, so build the factory images
+with Device/zyxel-fit-factory-img, which carries up to five IDs, and
+drop the single-ID zyxel-nwax10ax-fit:
+
+  NWA110AX 59 e1, WAX510D 56 e1
+  NWA210AX 5c e1, WAX610D 5b e1, WAX630S 6e e1
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ target/linux/qualcommax/image/ipq807x.mk | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)
+
+diff --git a/target/linux/qualcommax/image/ipq807x.mk b/target/linux/qualcommax/image/ipq807x.mk
+index 26a060fa82..a7e5e7fa07 100644
+--- a/target/linux/qualcommax/image/ipq807x.mk
++++ b/target/linux/qualcommax/image/ipq807x.mk
+@@ -1,4 +1,4 @@
+-DEVICE_VARS += NETGEAR_BOARD_ID NETGEAR_HW_ID TPLINK_SUPPORT_STRING ZYXEL_MODEL_ID
++DEVICE_VARS += NETGEAR_BOARD_ID NETGEAR_HW_ID TPLINK_SUPPORT_STRING
+ 
+ define Build/asus-fake-ramdisk
+ 	rm -rf $(KDIR)/tmp/fakerd
+@@ -33,13 +33,6 @@ define Build/wax6xx-netgear-tar
+ 	rm -rf $@.tmp
+ endef
+ 
+-define Build/zyxel-nwax10ax-fit
+-	$(TOPDIR)/scripts/mkits-zyxel-fit-filogic.sh \
+-		$@.its $@ "$(ZYXEL_MODEL_ID) ff ff ff ff ff ff ff ff"
+-	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage -f $@.its $@.new
+-	@mv $@.new $@
+-endef
+-
+ define Device/aliyun_ap8220
+ 	$(call Device/FitImage)
+ 	$(call Device/UbiFit)
+@@ -556,26 +549,30 @@ define Device/zyxel_nwax10ax_common
+ 	BLOCKSIZE := 128k
+ 	PAGESIZE := 2048
+ 	IMAGE_SIZE := 61440k
+-	IMAGES += factory.bin
+-	IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-nwax10ax-fit
+ endef
+ 
+ define Device/zyxel_nwa110ax
+ 	$(call Device/zyxel_nwax10ax_common)
+ 	DEVICE_MODEL := NWA110AX
++	DEVICE_ALT0_VENDOR := Zyxel
++	DEVICE_ALT0_MODEL := WAX510D
+ 	DEVICE_DTS_CONFIG := config@ac01
+ 	SOC := ipq8070
+ 	DEVICE_PACKAGES := ipq-wifi-zyxel_nwa110ax zyxel-bootconfig-ipq kmod-leds-lp5562
+-	ZYXEL_MODEL_ID := 59 e1
++	$(call Device/zyxel-fit-factory-img,59 e1,56 e1)
+ endef
+ TARGET_DEVICES += zyxel_nwa110ax
+ 
+ define Device/zyxel_nwa210ax
+ 	$(call Device/zyxel_nwax10ax_common)
+ 	DEVICE_MODEL := NWA210AX
++	DEVICE_ALT0_VENDOR := Zyxel
++	DEVICE_ALT0_MODEL := WAX610D
++	DEVICE_ALT1_VENDOR := Zyxel
++	DEVICE_ALT1_MODEL := WAX630S
+ 	DEVICE_DTS_CONFIG := config@ac02
+ 	SOC := ipq8071
+ 	DEVICE_PACKAGES := ipq-wifi-zyxel_nwa210ax zyxel-bootconfig-ipq kmod-leds-lp5562
+-	ZYXEL_MODEL_ID := 5c e1
++	$(call Device/zyxel-fit-factory-img,5c e1,5b e1,6e e1)
+ endef
+ TARGET_DEVICES += zyxel_nwa210ax
