@@ -1,5 +1,5 @@
 ---
-description: Same configuration as the official OpenWrt 25.12.6 release images
+description: Same configuration as the official OpenWrt 25.12.6 release images, without attended sysupgrade
 include:
   - openwrt-feeds
 # Taken from the release's config.buildinfo, which is identical for all
@@ -8,6 +8,13 @@ include:
 # select multiple devices are left out. ALL_KMODS, the kernel options and
 # all five feeds must stay: they decide the kernel vermagic, and with
 # BUILDBOT the image points apk at the release's kmods repository for it.
+#
+# Attended sysupgrade is left out: BUILDBOT turns on owut and
+# luci-app-attendedsysupgrade by default, so they and
+# attendedsysupgrade-common are disabled explicitly. The upgrade server
+# builds images with the release's ImageBuilder, which has no profile for
+# the devices this overlay adds, and for the others it would replace the
+# overlay image with the release one.
 diffconfig: |
   CONFIG_ALL_KMODS=y
   # CONFIG_ALL_NONSHARED is not set
@@ -38,15 +45,16 @@ diffconfig: |
   CONFIG_VERSION_PRODUCT=""
   CONFIG_VERSION_REPO="https://downloads.openwrt.org/releases/25.12.6"
   CONFIG_VERSION_SUPPORT_URL=""
+  # CONFIG_PACKAGE_attendedsysupgrade-common is not set
+  # CONFIG_PACKAGE_luci-app-attendedsysupgrade is not set
+  # CONFIG_PACKAGE_owut is not set
 packages:
-  - attendedsysupgrade-common
   - cgi-io
   - libiwinfo
   - libiwinfo-data
   - liblucihttp
   - liblucihttp-ucode
   - luci
-  - luci-app-attendedsysupgrade
   - luci-app-firewall
   - luci-app-package-manager
   - luci-base
@@ -60,7 +68,6 @@ packages:
   - luci-proto-ppp
   - luci-ssl
   - luci-theme-bootstrap
-  - owut
   - px5g-mbedtls
   - rpcd
   - rpcd-mod-file
