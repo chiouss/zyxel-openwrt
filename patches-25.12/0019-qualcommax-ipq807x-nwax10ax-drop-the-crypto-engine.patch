@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Fri, 13 Nov 2026 18:43:04 +0800
+Subject: [PATCH] qualcommax: ipq807x: nwax10ax: drop the crypto engine
+
+The DTS enables the crypto engine but not the BAM DMA controller it
+uses, so the driver never probes and the kernel reports:
+
+  platform 73a000.crypto: deferred probe pending: (reason unknown)
+
+The stock firmware of these devices does not build the crypto engine
+driver, and the CPU has the ARMv8 crypto extensions. Leave the crypto
+engine disabled instead of enabling the BAM DMA controller.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+---
+ .../files/arch/arm64/boot/dts/qcom/ipq807x-nwax10ax.dtsi      | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq807x-nwax10ax.dtsi b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq807x-nwax10ax.dtsi
+index f92d901bc8..a3c08fec9f 100644
+--- a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq807x-nwax10ax.dtsi
++++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq807x-nwax10ax.dtsi
+@@ -50,10 +50,6 @@
+ 	status = "okay";
+ };
+ 
+-&crypto {
+-	status = "okay";
+-};
+-
+ &edma {
+ 	status = "okay";
+ };
