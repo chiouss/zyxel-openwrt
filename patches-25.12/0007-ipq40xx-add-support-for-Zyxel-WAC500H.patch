@@ -229,17 +229,17 @@ index 0000000000..17d6e4cb4d
 +	qcom,ath10k-calibration-variant = "Zyxel-WAC500H";
 +};
 diff --git a/target/linux/ipq40xx/image/generic.mk b/target/linux/ipq40xx/image/generic.mk
-index 87ec9f5751..a9dc287b5e 100644
+index 2f1666fefe..8dbbfb0944 100644
 --- a/target/linux/ipq40xx/image/generic.mk
 +++ b/target/linux/ipq40xx/image/generic.mk
-@@ -1445,6 +1445,13 @@ define Device/zyxel_nwa1123acv3
+@@ -1435,6 +1435,13 @@ define Device/zyxel_nwa1123acv3
  endef
  TARGET_DEVICES += zyxel_nwa1123acv3
  
 +define Device/zyxel_wac500h
 +	$(call Device/zyxel_wac500_common)
 +	DEVICE_MODEL := WAC500H
-+	ZYXEL_MODEL_ID_0 := 64 e1
++	$(call Device/zyxel-fit-factory-img,64 e1)
 +endef
 +TARGET_DEVICES += zyxel_wac500h
 +

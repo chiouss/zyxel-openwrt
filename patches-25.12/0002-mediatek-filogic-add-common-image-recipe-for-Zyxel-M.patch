@@ -10,31 +10,21 @@ factory image format can reuse them.
 
 Replace Build/zyxel-nwa-fit-filogic, which had the model IDs of the
 factory image's "compat-models" list hardcoded, with the common
-zyxel-fit-factory-img recipe and set the NWA50AX Pro model IDs with
-ZYXEL_MODEL_ID_0 and ZYXEL_MODEL_ID_1. The common device definition
-clears all five, as device variables are not reset between devices.
-The NWA50AX Pro factory image is unchanged.
+zyxel-fit-factory-img recipe, added with the NWA50AX Pro model IDs
+through Device/zyxel-fit-factory-img. The NWA50AX Pro factory image is
+unchanged.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Signed-off-by: Mark Chiou <chiouss@gmail.com>
 ---
- target/linux/mediatek/image/filogic.mk | 32 +++++++++++++++-----------
- 1 file changed, 19 insertions(+), 13 deletions(-)
+ target/linux/mediatek/image/filogic.mk | 24 ++++++++++--------------
+ 1 file changed, 10 insertions(+), 14 deletions(-)
 
 diff --git a/target/linux/mediatek/image/filogic.mk b/target/linux/mediatek/image/filogic.mk
-index 1696036692..9fa3fcb657 100644
+index 1696036692..4493a6886e 100644
 --- a/target/linux/mediatek/image/filogic.mk
 +++ b/target/linux/mediatek/image/filogic.mk
-@@ -1,6 +1,8 @@
- DTS_DIR := $(DTS_DIR)/mediatek
- DEVICE_VARS += SUPPORTED_TELTONIKA_DEVICES
- DEVICE_VARS += SUPPORTED_TELTONIKA_HW_MODS
-+DEVICE_VARS += ZYXEL_MODEL_ID_0 ZYXEL_MODEL_ID_1 ZYXEL_MODEL_ID_2
-+DEVICE_VARS += ZYXEL_MODEL_ID_3 ZYXEL_MODEL_ID_4
- 
- define Image/Prepare
- 	# For UBI we want only one extra block
-@@ -117,13 +119,6 @@ define Build/mstc-header
+@@ -117,13 +117,6 @@ define Build/mstc-header
    mv $@.new $@
  endef
  
@@ -48,7 +38,7 @@ index 1696036692..9fa3fcb657 100644
  define Build/cetron-header
  	$(eval magic=$(word 1,$(1)))
  	$(eval model=$(word 2,$(1)))
-@@ -3863,12 +3858,8 @@ define Device/zyxel_ex5700-telenor
+@@ -3863,12 +3856,8 @@ define Device/zyxel_ex5700-telenor
  endef
  TARGET_DEVICES += zyxel_ex5700-telenor
  
@@ -62,19 +52,14 @@ index 1696036692..9fa3fcb657 100644
    DEVICE_DTS_DIR := ../dts
    DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware zyxel-bootconfig
    DEVICE_DTS_LOADADDR := 0x44000000
-@@ -3878,8 +3869,23 @@ define Device/zyxel_nwa50ax-pro
+@@ -3877,10 +3866,17 @@ define Device/zyxel_nwa50ax-pro
+   PAGESIZE := 2048
    IMAGE_SIZE := 51200k
    KERNEL_IN_UBI := 1
-   IMAGES += factory.bin
+-  IMAGES += factory.bin
 -  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-nwa-fit-filogic
-+  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-fit-factory-img
    IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
-+  ZYXEL_MODEL_ID_0 :=
-+  ZYXEL_MODEL_ID_1 :=
-+  ZYXEL_MODEL_ID_2 :=
-+  ZYXEL_MODEL_ID_3 :=
-+  ZYXEL_MODEL_ID_4 :=
-+endef
+ endef
 +
 +define Device/zyxel_nwa50ax-pro
 +  $(call Device/zyxel_filogic_common)
@@ -82,8 +67,8 @@ index 1696036692..9fa3fcb657 100644
 +  DEVICE_ALT0_VENDOR := Zyxel
 +  DEVICE_ALT0_MODEL := NWA90AX Pro
 +  DEVICE_DTS := mt7981b-zyxel-nwa50ax-pro
-+  ZYXEL_MODEL_ID_0 := 80 e1
-+  ZYXEL_MODEL_ID_1 := 81 e1
- endef
++  $(call Device/zyxel-fit-factory-img,80 e1,81 e1)
++endef
  TARGET_DEVICES += zyxel_nwa50ax-pro
  
+ define Device/zyxel_wx5600-t0-ubootmod

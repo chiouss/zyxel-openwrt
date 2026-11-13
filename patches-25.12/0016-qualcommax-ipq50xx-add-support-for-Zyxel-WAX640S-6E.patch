@@ -132,13 +132,13 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
 ---
  .../files/95_apply_bootconfig                 |   3 +-
  .../boot/dts/qcom/ipq5018-wax640s-6e.dts      | 141 ++++++++++++++++++
- target/linux/qualcommax/image/ipq50xx.mk      |  22 +++
+ target/linux/qualcommax/image/ipq50xx.mk      |  20 +++
  .../ipq50xx/base-files/etc/board.d/01_leds    |   3 +-
  .../ipq50xx/base-files/etc/board.d/02_network |   3 +-
  .../etc/hotplug.d/firmware/11-ath11k-caldata  |  17 ++-
  .../etc/hotplug.d/ieee80211/05-wifi-migrate   |   3 +
  .../base-files/lib/upgrade/platform.sh        |   3 +-
- 8 files changed, 190 insertions(+), 5 deletions(-)
+ 8 files changed, 188 insertions(+), 5 deletions(-)
  create mode 100644 target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-wax640s-6e.dts
 
 diff --git a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
@@ -303,10 +303,10 @@ index 0000000000..5434a78bdc
 +	qcom,m3-dump-addr = <0x4df00000>;
 +};
 diff --git a/target/linux/qualcommax/image/ipq50xx.mk b/target/linux/qualcommax/image/ipq50xx.mk
-index a9608a06f0..b37dddad03 100644
+index 798a2bfa14..6f18a1ad94 100644
 --- a/target/linux/qualcommax/image/ipq50xx.mk
 +++ b/target/linux/qualcommax/image/ipq50xx.mk
-@@ -275,3 +275,25 @@ define Device/zyxel_scr50axe
+@@ -270,3 +270,23 @@ define Device/zyxel_scr50axe
  		ipq-wifi-zyxel_scr50axe
  endef
  TARGET_DEVICES += zyxel_scr50axe
@@ -322,9 +322,7 @@ index a9608a06f0..b37dddad03 100644
 +	NAND_SIZE := 256m
 +	IMAGE_SIZE := 63488k
 +	DEVICE_DTS_CONFIG := config@mp03.3
-+	IMAGES += factory.bin
-+	IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-fit-factory-img
-+	ZYXEL_MODEL_ID_0 := 74 e1
++	$(call Device/zyxel-fit-factory-img,74 e1)
 +	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
 +		kmod-ath11k-pci \
 +		ath11k-firmware-qcn9074 \

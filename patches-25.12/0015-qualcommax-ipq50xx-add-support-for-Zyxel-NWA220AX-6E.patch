@@ -126,12 +126,12 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
 ---
  .../boot/dts/qcom/ipq5018-nwa220ax-6e.dts     |  74 +++
  .../arm64/boot/dts/qcom/ipq5018-zyxel-6e.dtsi | 469 ++++++++++++++++++
- target/linux/qualcommax/image/ipq50xx.mk      |  26 +
+ target/linux/qualcommax/image/ipq50xx.mk      |  21 +
  .../ipq50xx/base-files/etc/board.d/01_leds    |   6 +
  .../ipq50xx/base-files/etc/board.d/02_network |   3 +
  .../etc/hotplug.d/firmware/11-ath11k-caldata  |  14 +
  .../base-files/lib/upgrade/platform.sh        |  10 +
- 7 files changed, 602 insertions(+)
+ 7 files changed, 597 insertions(+)
  create mode 100644 target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-nwa220ax-6e.dts
  create mode 100644 target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-zyxel-6e.dtsi
 
@@ -691,17 +691,10 @@ index 0000000000..0b2f3a4064
 +	};
 +};
 diff --git a/target/linux/qualcommax/image/ipq50xx.mk b/target/linux/qualcommax/image/ipq50xx.mk
-index 60348ccea6..a9608a06f0 100644
+index 60348ccea6..798a2bfa14 100644
 --- a/target/linux/qualcommax/image/ipq50xx.mk
 +++ b/target/linux/qualcommax/image/ipq50xx.mk
-@@ -1,4 +1,6 @@
- DEVICE_VARS += BOOT_SCRIPT
-+DEVICE_VARS += ZYXEL_MODEL_ID_0 ZYXEL_MODEL_ID_1 ZYXEL_MODEL_ID_2
-+DEVICE_VARS += ZYXEL_MODEL_ID_3 ZYXEL_MODEL_ID_4
- 
- define Build/mstc-header
- 	$(eval version=$(word 1,$(1)))
-@@ -235,6 +237,30 @@ define Device/yuncore_ax850
+@@ -235,6 +235,27 @@ define Device/yuncore_ax850
  endef
  TARGET_DEVICES += yuncore_ax850
  
@@ -718,10 +711,7 @@ index 60348ccea6..a9608a06f0 100644
 +	NAND_SIZE := 256m
 +	IMAGE_SIZE := 63488k
 +	DEVICE_DTS_CONFIG := config@mp03.1
-+	IMAGES += factory.bin
-+	IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-fit-factory-img
-+	ZYXEL_MODEL_ID_0 := 76 e1
-+	ZYXEL_MODEL_ID_1 := 75 e1
++	$(call Device/zyxel-fit-factory-img,76 e1,75 e1)
 +	DEVICE_PACKAGES := ath11k-firmware-ipq5018 \
 +		kmod-ath11k-pci \
 +		ath11k-firmware-qcn9074 \

@@ -55,10 +55,9 @@ can be used in the stock CLI via serial/SSH/telnet to switch to image 1.
 
 The factory image is a UBI image wrapped in an outer FIT listing the
 model IDs of both devices ("62 e1" for NWA1123ACv3, "63 e1" for
-WAC500), which the stock firmware checks before accepting it. The common
-device definition clears the model IDs, as device variables are not
-reset between devices. On first boot, zyxel-bootconfig marks the
-OpenWrt image as the selected one so the bootloader keeps booting it.
+WAC500), which the stock firmware checks before accepting it. On first
+boot, zyxel-bootconfig marks the OpenWrt image as the selected one so
+the bootloader keeps booting it.
 
 Switch Boot Image
 -----------------
@@ -100,8 +99,8 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
  .../base-files/lib/upgrade/platform.sh        |   3 +-
  .../dts/qcom/qcom-ipq4018-nwa1123acv3.dts     |  38 ++
  .../dts/qcom/qcom-ipq4018-zyxel-wac500.dtsi   | 329 ++++++++++++++++++
- target/linux/ipq40xx/image/generic.mk         |  31 ++
- 7 files changed, 406 insertions(+), 4 deletions(-)
+ target/linux/ipq40xx/image/generic.mk         |  21 ++
+ 7 files changed, 396 insertions(+), 4 deletions(-)
  create mode 100644 target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-nwa1123acv3.dts
  create mode 100644 target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4018-zyxel-wac500.dtsi
 
@@ -541,19 +540,10 @@ index 0000000000..138da8a057
 +	reset-delay-us = <2000>;
 +};
 diff --git a/target/linux/ipq40xx/image/generic.mk b/target/linux/ipq40xx/image/generic.mk
-index 4e155a3b07..87ec9f5751 100644
+index 4e155a3b07..2f1666fefe 100644
 --- a/target/linux/ipq40xx/image/generic.mk
 +++ b/target/linux/ipq40xx/image/generic.mk
-@@ -4,6 +4,8 @@ DEVICE_VARS += RAS_BOARD RAS_ROOTFS_SIZE RAS_VERSION
- DEVICE_VARS += WRGG_DEVNAME WRGG_SIGNATURE
- DEVICE_VARS += SUPPORTED_TELTONIKA_DEVICES
- DEVICE_VARS += SUPPORTED_TELTONIKA_HW_MODS
-+DEVICE_VARS += ZYXEL_MODEL_ID_0 ZYXEL_MODEL_ID_1 ZYXEL_MODEL_ID_2
-+DEVICE_VARS += ZYXEL_MODEL_ID_3 ZYXEL_MODEL_ID_4
- 
- define Build/netgear-fit-padding
- 	./netgear-fit-padding.py $@ $@.new
-@@ -1414,6 +1416,35 @@ define Device/zyxel_nbg6617
+@@ -1414,6 +1414,27 @@ define Device/zyxel_nbg6617
  endef
  TARGET_DEVICES += zyxel_nbg6617
  
@@ -566,14 +556,7 @@ index 4e155a3b07..87ec9f5751 100644
 +	BLOCKSIZE := 128k
 +	PAGESIZE := 2048
 +	IMAGE_SIZE := 53248k
-+	IMAGES += factory.bin
-+	IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-fit-factory-img
 +	DEVICE_PACKAGES := uboot-envtools zyxel-bootconfig-ipq
-+	ZYXEL_MODEL_ID_0 :=
-+	ZYXEL_MODEL_ID_1 :=
-+	ZYXEL_MODEL_ID_2 :=
-+	ZYXEL_MODEL_ID_3 :=
-+	ZYXEL_MODEL_ID_4 :=
 +endef
 +
 +define Device/zyxel_nwa1123acv3
@@ -581,8 +564,7 @@ index 4e155a3b07..87ec9f5751 100644
 +	DEVICE_MODEL := NWA1123ACv3
 +	DEVICE_ALT0_VENDOR := Zyxel
 +	DEVICE_ALT0_MODEL := WAC500
-+	ZYXEL_MODEL_ID_0 := 62 e1
-+	ZYXEL_MODEL_ID_1 := 63 e1
++	$(call Device/zyxel-fit-factory-img,62 e1,63 e1)
 +endef
 +TARGET_DEVICES += zyxel_nwa1123acv3
 +
