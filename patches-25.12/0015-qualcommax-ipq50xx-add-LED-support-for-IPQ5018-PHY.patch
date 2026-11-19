@@ -23,7 +23,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
 
 diff --git a/target/linux/qualcommax/patches-6.12/0961-net-phy-at803x-add-LED-support-for-IPQ5018-PHY.patch b/target/linux/qualcommax/patches-6.12/0961-net-phy-at803x-add-LED-support-for-IPQ5018-PHY.patch
 new file mode 100644
-index 0000000000..9eb462547a
+index 00000000..9eb46254
 --- /dev/null
 +++ b/target/linux/qualcommax/patches-6.12/0961-net-phy-at803x-add-LED-support-for-IPQ5018-PHY.patch
 @@ -0,0 +1,187 @@

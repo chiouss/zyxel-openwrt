@@ -32,7 +32,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
 
 diff --git a/package/kernel/mac80211/patches/ath11k/953-wifi-ath11k-limit-scan-channel-list-messages-to-2048-bytes.patch b/package/kernel/mac80211/patches/ath11k/953-wifi-ath11k-limit-scan-channel-list-messages-to-2048-bytes.patch
 new file mode 100644
-index 0000000000..9e3b203047
+index 00000000..9e3b2030
 --- /dev/null
 +++ b/package/kernel/mac80211/patches/ath11k/953-wifi-ath11k-limit-scan-channel-list-messages-to-2048-bytes.patch
 @@ -0,0 +1,56 @@

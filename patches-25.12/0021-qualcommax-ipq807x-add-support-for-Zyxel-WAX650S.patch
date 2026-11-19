@@ -42,7 +42,7 @@ The volume comes first in the UBI image, so the root filesystem is
 ubiblock0_2.
 
 Installation, Switch Boot Image and MAC addresses are as on the
-NWA210AX; the factory image carries model ID 54 e1.
+NWA210AX; the factory image carries model ID 54e1.
 
 The firmware itself is not redistributable, so the image cannot ship
 it.
@@ -71,7 +71,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
  create mode 100644 target/linux/qualcommax/ipq807x/base-files/lib/preinit/96_zyxel_ethphyfw
 
 diff --git a/package/boot/uboot-tools/uboot-envtools/files/qualcommax_ipq807x b/package/boot/uboot-tools/uboot-envtools/files/qualcommax_ipq807x
-index 9da821b9e0..2b2401a42e 100644
+index 9da821b9..2b2401a4 100644
 --- a/package/boot/uboot-tools/uboot-envtools/files/qualcommax_ipq807x
 +++ b/package/boot/uboot-tools/uboot-envtools/files/qualcommax_ipq807x
 @@ -13,7 +13,8 @@ compex,wpq873|\
@@ -85,7 +85,7 @@ index 9da821b9e0..2b2401a42e 100644
  	;;
  asus,rt-ax89x|\
 diff --git a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
-index 709fc67c52..086d3a13a7 100644
+index 709fc67c..086d3a13 100644
 --- a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
 +++ b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
 @@ -4,6 +4,7 @@ apply_bootconfig() {
@@ -98,7 +98,7 @@ index 709fc67c52..086d3a13a7 100644
  	zyxel,nwa220ax-6e|\
 diff --git a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8072-wax650s.dts b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8072-wax650s.dts
 new file mode 100644
-index 0000000000..a794f08b75
+index 00000000..a794f08b
 --- /dev/null
 +++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8072-wax650s.dts
 @@ -0,0 +1,84 @@
@@ -187,11 +187,11 @@ index 0000000000..a794f08b75
 +	qcom,ath11k-calibration-variant = "Zyxel-WAX650S";
 +};
 diff --git a/target/linux/qualcommax/image/ipq807x.mk b/target/linux/qualcommax/image/ipq807x.mk
-index a7e5e7fa07..92e91b6304 100644
+index 882c98f3..66ffb9f2 100644
 --- a/target/linux/qualcommax/image/ipq807x.mk
 +++ b/target/linux/qualcommax/image/ipq807x.mk
 @@ -576,3 +576,14 @@ define Device/zyxel_nwa210ax
- 	$(call Device/zyxel-fit-factory-img,5c e1,5b e1,6e e1)
+ 	$(call Device/zyxel-fit-factory-img,5ce1 5be1 6ee1)
  endef
  TARGET_DEVICES += zyxel_nwa210ax
 +
@@ -202,18 +202,18 @@ index a7e5e7fa07..92e91b6304 100644
 +	SOC := ipq8072
 +	DEVICE_PACKAGES := zyxel-bootconfig-ipq kmod-leds-lp5562
 +	UBINIZE_PARTS := ethphyfw=$(CURDIR)/zyxel-ethphyfw.stub=1
-+	$(call Device/zyxel-fit-factory-img,54 e1)
++	$(call Device/zyxel-fit-factory-img,54e1)
 +endef
 +TARGET_DEVICES += zyxel_wax650s
 diff --git a/target/linux/qualcommax/image/zyxel-ethphyfw.stub b/target/linux/qualcommax/image/zyxel-ethphyfw.stub
 new file mode 100644
-index 0000000000..25b844b0e2
+index 00000000..25b844b0
 --- /dev/null
 +++ b/target/linux/qualcommax/image/zyxel-ethphyfw.stub
 @@ -0,0 +1 @@
 +Placeholder for the Zyxel PHY firmware, filled from the stock firmware on first boot.
 diff --git a/target/linux/qualcommax/ipq807x/base-files/etc/board.d/02_network b/target/linux/qualcommax/ipq807x/base-files/etc/board.d/02_network
-index eaa8d28a05..272fe5fd1a 100644
+index eaa8d28a..272fe5fd 100644
 --- a/target/linux/qualcommax/ipq807x/base-files/etc/board.d/02_network
 +++ b/target/linux/qualcommax/ipq807x/base-files/etc/board.d/02_network
 @@ -74,7 +74,8 @@ ipq807x_setup_interfaces()
@@ -237,7 +237,7 @@ index eaa8d28a05..272fe5fd1a 100644
  		lan_mac=$label_mac
  		;;
 diff --git a/target/linux/qualcommax/ipq807x/base-files/etc/hotplug.d/firmware/11-ath11k-caldata b/target/linux/qualcommax/ipq807x/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
-index ac5d160145..ea690863b7 100644
+index ac5d1601..ea690863 100644
 --- a/target/linux/qualcommax/ipq807x/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
 +++ b/target/linux/qualcommax/ipq807x/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
 @@ -133,7 +133,8 @@ case "$FIRMWARE" in
@@ -252,7 +252,7 @@ index ac5d160145..ea690863b7 100644
  		ath11k_patch_mac $(macaddr_add $label_mac 3) 0
 diff --git a/target/linux/qualcommax/ipq807x/base-files/lib/preinit/96_zyxel_ethphyfw b/target/linux/qualcommax/ipq807x/base-files/lib/preinit/96_zyxel_ethphyfw
 new file mode 100644
-index 0000000000..d35bdbd05a
+index 00000000..d35bdbd0
 --- /dev/null
 +++ b/target/linux/qualcommax/ipq807x/base-files/lib/preinit/96_zyxel_ethphyfw
 @@ -0,0 +1,86 @@
@@ -343,7 +343,7 @@ index 0000000000..d35bdbd05a
 +
 +[ "$INITRAMFS" = "1" ] || boot_hook_add preinit_main zyxel_ethphyfw
 diff --git a/target/linux/qualcommax/ipq807x/base-files/lib/upgrade/platform.sh b/target/linux/qualcommax/ipq807x/base-files/lib/upgrade/platform.sh
-index f5a36a1c94..6d28e2d4a3 100644
+index f5a36a1c..6d28e2d4 100644
 --- a/target/linux/qualcommax/ipq807x/base-files/lib/upgrade/platform.sh
 +++ b/target/linux/qualcommax/ipq807x/base-files/lib/upgrade/platform.sh
 @@ -186,7 +186,8 @@ platform_do_upgrade() {

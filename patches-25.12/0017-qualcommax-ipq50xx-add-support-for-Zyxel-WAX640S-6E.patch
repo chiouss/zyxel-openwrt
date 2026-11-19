@@ -53,7 +53,7 @@ can be used in the stock CLI via serial/SSH/telnet to switch to image 1.
    click on "Upload"
 
 The factory image is a UBI image wrapped in an outer FIT carrying the
-device model ID ("74 e1"), which the stock firmware checks before
+device model ID ("74e1"), which the stock firmware checks before
 accepting it. The stock firmware flashes the "ubi" section into the
 inactive image. On first boot, zyxel-bootconfig marks the OpenWrt image
 as the selected one so the bootloader keeps booting it.
@@ -142,7 +142,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
  create mode 100644 target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-wax640s-6e.dts
 
 diff --git a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
-index 648fec95c0..d7174b5b2e 100644
+index 648fec95..d7174b5b 100644
 --- a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
 +++ b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
 @@ -5,7 +5,8 @@ apply_bootconfig() {
@@ -157,7 +157,7 @@ index 648fec95c0..d7174b5b2e 100644
  		;;
 diff --git a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-wax640s-6e.dts b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-wax640s-6e.dts
 new file mode 100644
-index 0000000000..5434a78bdc
+index 00000000..5434a78b
 --- /dev/null
 +++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq5018-wax640s-6e.dts
 @@ -0,0 +1,141 @@
@@ -303,7 +303,7 @@ index 0000000000..5434a78bdc
 +	qcom,m3-dump-addr = <0x4df00000>;
 +};
 diff --git a/target/linux/qualcommax/image/ipq50xx.mk b/target/linux/qualcommax/image/ipq50xx.mk
-index 798a2bfa14..6f18a1ad94 100644
+index 4fb24adc..4cf9323e 100644
 --- a/target/linux/qualcommax/image/ipq50xx.mk
 +++ b/target/linux/qualcommax/image/ipq50xx.mk
 @@ -270,3 +270,23 @@ define Device/zyxel_scr50axe
@@ -322,7 +322,7 @@ index 798a2bfa14..6f18a1ad94 100644
 +	NAND_SIZE := 256m
 +	IMAGE_SIZE := 63488k
 +	DEVICE_DTS_CONFIG := config@mp03.3
-+	$(call Device/zyxel-fit-factory-img,74 e1)
++	$(call Device/zyxel-fit-factory-img,74e1)
 +	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
 +		kmod-ath11k-pci \
 +		ath11k-firmware-qcn9074 \
@@ -331,7 +331,7 @@ index 798a2bfa14..6f18a1ad94 100644
 +endef
 +TARGET_DEVICES += zyxel_wax640s-6e
 diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/01_leds b/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/01_leds
-index 54dbfc81d0..6fb3164cfd 100644
+index 54dbfc81..6fb3164c 100644
 --- a/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/01_leds
 +++ b/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/01_leds
 @@ -26,7 +26,8 @@ linksys,mr5500)
@@ -345,7 +345,7 @@ index 54dbfc81d0..6fb3164cfd 100644
  	ucidef_set_led_netdev "uplink-1000" "UPLINK-1000" "90000.mdio-1:10:amber:lan" "uplink" "link_10 link_100 link_1000 tx rx"
  	ucidef_set_led_netdev "lan1-1000" "LAN1-1000" "88000.mdio-1:07:green:lan" "lan1" "link_1000 tx rx"
 diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/02_network b/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/02_network
-index dd67af4dee..5cef2120f0 100644
+index dd67af4d..5cef2120 100644
 --- a/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/02_network
 +++ b/target/linux/qualcommax/ipq50xx/base-files/etc/board.d/02_network
 @@ -29,7 +29,8 @@ ipq50xx_setup_interfaces()
@@ -359,7 +359,7 @@ index dd67af4dee..5cef2120f0 100644
  		;;
  	esac
 diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
-index 953bfe9e47..3739bfc71c 100644
+index 953bfe9e..3739bfc7 100644
 --- a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
 +++ b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
 @@ -57,7 +57,8 @@ case "$FIRMWARE" in
@@ -401,7 +401,7 @@ index 953bfe9e47..3739bfc71c 100644
  	;;
  *)
 diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/ieee80211/05-wifi-migrate b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/ieee80211/05-wifi-migrate
-index d3460db582..71471a21ae 100644
+index d3460db5..71471a21 100644
 --- a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/ieee80211/05-wifi-migrate
 +++ b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/ieee80211/05-wifi-migrate
 @@ -60,6 +60,9 @@ linksys,mx5500|\
@@ -415,7 +415,7 @@ index d3460db582..71471a21ae 100644
  
  $WIRELESS_CHANGED && uci commit wireless
 diff --git a/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh b/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
-index 9df8cf4424..90c82d3983 100644
+index 9df8cf44..90c82d39 100644
 --- a/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
 +++ b/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
 @@ -230,7 +230,8 @@ platform_do_upgrade() {

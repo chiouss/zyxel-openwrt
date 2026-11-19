@@ -87,7 +87,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
  create mode 100644 target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq807x-nwax10ax.dtsi
 
 diff --git a/package/boot/uboot-tools/uboot-envtools/files/qualcommax_ipq807x b/package/boot/uboot-tools/uboot-envtools/files/qualcommax_ipq807x
-index 46a7111c1b..9da821b9e0 100644
+index 46a7111c..9da821b9 100644
 --- a/package/boot/uboot-tools/uboot-envtools/files/qualcommax_ipq807x
 +++ b/package/boot/uboot-tools/uboot-envtools/files/qualcommax_ipq807x
 @@ -12,6 +12,7 @@ aliyun,ap8220|\
@@ -99,7 +99,7 @@ index 46a7111c1b..9da821b9e0 100644
  	ubootenv_add_mtd "0:appsblenv" "0x0" "0x10000" "0x10000"
  	;;
 diff --git a/package/firmware/ipq-wifi/Makefile b/package/firmware/ipq-wifi/Makefile
-index d3605dd622..03df40e2ae 100644
+index d3605dd6..03df40e2 100644
 --- a/package/firmware/ipq-wifi/Makefile
 +++ b/package/firmware/ipq-wifi/Makefile
 @@ -108,6 +108,7 @@ ALLWIFIBOARDS:= \
@@ -119,7 +119,7 @@ index d3605dd622..03df40e2ae 100644
  $(eval $(call generate-ipq-wifi-package,zyxel_scr50axe,Zyxel SCR50AXE))
  
 diff --git a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
-index d7174b5b2e..709fc67c52 100644
+index d7174b5b..709fc67c 100644
 --- a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
 +++ b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
 @@ -2,6 +2,7 @@ apply_bootconfig() {
@@ -132,7 +132,7 @@ index d7174b5b2e..709fc67c52 100644
  	zyxel,wac500h|\
 diff --git a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8070-nwa110ax.dts b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8070-nwa110ax.dts
 new file mode 100644
-index 0000000000..c9358a031d
+index 00000000..c9358a03
 --- /dev/null
 +++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8070-nwa110ax.dts
 @@ -0,0 +1,33 @@
@@ -170,7 +170,7 @@ index 0000000000..c9358a031d
 +	qcom,ath11k-calibration-variant = "Zyxel-NWA110AX";
 +};
 diff --git a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8071-nwa210ax.dts b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8071-nwa210ax.dts
-index fb440d1e96..91a4027b40 100644
+index fb440d1e..91a4027b 100644
 --- a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8071-nwa210ax.dts
 +++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8071-nwa210ax.dts
 @@ -6,43 +6,18 @@
@@ -596,7 +596,7 @@ index fb440d1e96..91a4027b40 100644
 -};
 diff --git a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq807x-nwax10ax.dtsi b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq807x-nwax10ax.dtsi
 new file mode 100644
-index 0000000000..f92d901bc8
+index 00000000..f92d901b
 --- /dev/null
 +++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq807x-nwax10ax.dtsi
 @@ -0,0 +1,375 @@
@@ -976,7 +976,7 @@ index 0000000000..f92d901bc8
 +	};
 +};
 diff --git a/target/linux/qualcommax/image/ipq807x.mk b/target/linux/qualcommax/image/ipq807x.mk
-index 15ab3f4736..26a060fa82 100644
+index 03db8fc0..03cb1b2e 100644
 --- a/target/linux/qualcommax/image/ipq807x.mk
 +++ b/target/linux/qualcommax/image/ipq807x.mk
 @@ -1,4 +1,4 @@
@@ -992,8 +992,8 @@ index 15ab3f4736..26a060fa82 100644
 -define Build/zyxel-nwa210ax-fit
 +define Build/zyxel-nwax10ax-fit
  	$(TOPDIR)/scripts/mkits-zyxel-fit-filogic.sh \
--		$@.its $@ "5c e1 ff ff ff ff ff ff ff ff"
-+		$@.its $@ "$(ZYXEL_MODEL_ID) ff ff ff ff ff ff ff ff"
+-		$@.its $@ "5ce1"
++		$@.its $@ "$(ZYXEL_MODEL_ID)"
  	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage -f $@.its $@.new
  	@mv $@.new $@
  endef
@@ -1025,7 +1025,7 @@ index 15ab3f4736..26a060fa82 100644
 +	DEVICE_DTS_CONFIG := config@ac01
 +	SOC := ipq8070
 +	DEVICE_PACKAGES := ipq-wifi-zyxel_nwa110ax zyxel-bootconfig-ipq kmod-leds-lp5562
-+	ZYXEL_MODEL_ID := 59 e1
++	ZYXEL_MODEL_ID := 59e1
 +endef
 +TARGET_DEVICES += zyxel_nwa110ax
 +
@@ -1035,11 +1035,11 @@ index 15ab3f4736..26a060fa82 100644
 +	DEVICE_DTS_CONFIG := config@ac02
 +	SOC := ipq8071
 +	DEVICE_PACKAGES := ipq-wifi-zyxel_nwa210ax zyxel-bootconfig-ipq kmod-leds-lp5562
-+	ZYXEL_MODEL_ID := 5c e1
++	ZYXEL_MODEL_ID := 5ce1
  endef
  TARGET_DEVICES += zyxel_nwa210ax
 diff --git a/target/linux/qualcommax/ipq807x/base-files/etc/board.d/02_network b/target/linux/qualcommax/ipq807x/base-files/etc/board.d/02_network
-index 7a5f280a24..eaa8d28a05 100644
+index 7a5f280a..eaa8d28a 100644
 --- a/target/linux/qualcommax/ipq807x/base-files/etc/board.d/02_network
 +++ b/target/linux/qualcommax/ipq807x/base-files/etc/board.d/02_network
 @@ -71,6 +71,9 @@ ipq807x_setup_interfaces()
@@ -1061,7 +1061,7 @@ index 7a5f280a24..eaa8d28a05 100644
  		label_mac=$(get_mac_label_dt)
  		lan_mac=$label_mac
 diff --git a/target/linux/qualcommax/ipq807x/base-files/etc/hotplug.d/firmware/11-ath11k-caldata b/target/linux/qualcommax/ipq807x/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
-index df4907c517..ac5d160145 100644
+index df4907c5..ac5d1601 100644
 --- a/target/linux/qualcommax/ipq807x/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
 +++ b/target/linux/qualcommax/ipq807x/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
 @@ -126,6 +126,13 @@ case "$FIRMWARE" in
@@ -1079,7 +1079,7 @@ index df4907c517..ac5d160145 100644
  		caldata_extract "0:art" 0x1000 0x20000
  		label_mac=$(get_mac_label)
 diff --git a/target/linux/qualcommax/ipq807x/base-files/lib/upgrade/platform.sh b/target/linux/qualcommax/ipq807x/base-files/lib/upgrade/platform.sh
-index 6962b27672..f5a36a1c94 100644
+index 6962b276..f5a36a1c 100644
 --- a/target/linux/qualcommax/ipq807x/base-files/lib/upgrade/platform.sh
 +++ b/target/linux/qualcommax/ipq807x/base-files/lib/upgrade/platform.sh
 @@ -185,6 +185,7 @@ platform_do_upgrade() {

@@ -23,7 +23,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
 
 diff --git a/target/linux/generic/pending-6.12/722-net-phy-qca808x-only-bypass-blink-check-without-speed-duplex-rules.patch b/target/linux/generic/pending-6.12/722-net-phy-qca808x-only-bypass-blink-check-without-speed-duplex-rules.patch
 new file mode 100644
-index 0000000000..7be8f2b8e2
+index 00000000..7be8f2b8
 --- /dev/null
 +++ b/target/linux/generic/pending-6.12/722-net-phy-qca808x-only-bypass-blink-check-without-speed-duplex-rules.patch
 @@ -0,0 +1,39 @@

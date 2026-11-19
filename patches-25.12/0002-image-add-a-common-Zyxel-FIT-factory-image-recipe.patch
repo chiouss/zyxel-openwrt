@@ -7,56 +7,52 @@ The stock firmware of the Zyxel MT7981B and IPQ40xx based access points
 accepts the same factory image: a UBI image wrapped in an outer FIT
 whose "compat-models" property lists up to five two-byte model IDs.
 
-Add zyxel-fit-factory-img to include/image-commands.mk. It takes the
-model IDs from the ZYXEL_MODEL_ID_0 to ZYXEL_MODEL_ID_4 device
-variables, in that order, and fills the unset ones with "ff ff".
+Add zyxel-fit-factory-img to include/image-commands.mk. It passes the
+ZYXEL_MODEL_ID device variable, a list of one to five model IDs such as
+"76e1 75e1", to mkits-zyxel-fit-filogic.sh, which pads the list to five
+IDs with "ffff".
 
 Devices add the factory image with Device/zyxel-fit-factory-img, which
-takes the model IDs as arguments, for example
-$(call Device/zyxel-fit-factory-img,76 e1,75 e1). Device variables are
-not reset between devices, so it assigns all five and clears the unused
-ones. The variables are added to DEVICE_VARS next to it.
+takes the model IDs as its argument, for example
+$(call Device/zyxel-fit-factory-img,76e1 75e1). Device variables are
+not reset between devices, so it always assigns ZYXEL_MODEL_ID. The
+variable is added to DEVICE_VARS next to it.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Signed-off-by: Mark Chiou <chiouss@gmail.com>
 ---
- include/image-commands.mk | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ include/image-commands.mk | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
 
 diff --git a/include/image-commands.mk b/include/image-commands.mk
-index e278cf1b19..8d968f2a7d 100644
+index e278cf1b..0cf432bf 100644
 --- a/include/image-commands.mk
 +++ b/include/image-commands.mk
-@@ -863,6 +863,34 @@ define Build/zyimage
+@@ -863,6 +863,29 @@ define Build/zyimage
  	$(STAGING_DIR_HOST)/bin/zyimage $(1) $@
  endef
  
 +# Wrap the image in the outer FIT the Zyxel stock firmware checks before
-+# accepting it as a factory image. It carries up to five two-byte model IDs
-+# (ZYXEL_MODEL_ID_0 to ZYXEL_MODEL_ID_4), unused slots are filled with ff ff.
++# accepting it as a factory image. ZYXEL_MODEL_ID lists the one to five
++# model IDs of four hex digits the image is for, e.g. "76e1 75e1".
 +# Devices add it with Device/zyxel-fit-factory-img below.
 +define Build/zyxel-fit-factory-img
 +	$(TOPDIR)/scripts/mkits-zyxel-fit-filogic.sh \
-+		$@.its $@ "$(foreach i,0 1 2 3 4,$(or $(ZYXEL_MODEL_ID_$(i)),ff ff))"
++		$@.its $@ "$(ZYXEL_MODEL_ID)"
 +	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage -f $@.its $@.new
 +	@mv $@.new $@
 +endef
 +
-+DEVICE_VARS += ZYXEL_MODEL_ID_0 ZYXEL_MODEL_ID_1 ZYXEL_MODEL_ID_2
-+DEVICE_VARS += ZYXEL_MODEL_ID_3 ZYXEL_MODEL_ID_4
++DEVICE_VARS += ZYXEL_MODEL_ID
 +
 +# Add the factory image to a device and set its model IDs, for example
-+# $(call Device/zyxel-fit-factory-img,76 e1,75 e1). It assigns all five
-+# ZYXEL_MODEL_ID_n, so IDs set for a previously defined device don't leak
++# $(call Device/zyxel-fit-factory-img,76e1 75e1). It always assigns
++# ZYXEL_MODEL_ID, so the IDs of a previously defined device don't leak
 +# into the next one.
 +define Device/zyxel-fit-factory-img
 +	IMAGES += factory.bin
 +	IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE) | zyxel-fit-factory-img
-+	ZYXEL_MODEL_ID_0 := $(1)
-+	ZYXEL_MODEL_ID_1 := $(2)
-+	ZYXEL_MODEL_ID_2 := $(3)
-+	ZYXEL_MODEL_ID_3 := $(4)
-+	ZYXEL_MODEL_ID_4 := $(5)
++	ZYXEL_MODEL_ID := $(1)
 +endef
 +
  define Build/zyxel-ras-image

@@ -25,7 +25,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
 
 diff --git a/target/linux/generic/backport-6.12/423-v7.2-spi-spi-qpic-snand-write-the-feature-value-before-ex.patch b/target/linux/generic/backport-6.12/423-v7.2-spi-spi-qpic-snand-write-the-feature-value-before-ex.patch
 new file mode 100644
-index 0000000000..46f671cc82
+index 00000000..46f671cc
 --- /dev/null
 +++ b/target/linux/generic/backport-6.12/423-v7.2-spi-spi-qpic-snand-write-the-feature-value-before-ex.patch
 @@ -0,0 +1,86 @@

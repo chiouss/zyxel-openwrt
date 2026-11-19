@@ -7,7 +7,7 @@ The Zyxel WAX300H is an 802.11ax access point based on the MediaTek
 MT7981B. It shares the flash layout, bootloader, dual-image handling
 and image recipe of the NWA50AX Pro, but has an MT7531 switch with four
 Ethernet ports instead of a single 2.5G PHY, and uses its own model ID
-("84 e1").
+("84e1").
 
 Hardware
 --------
@@ -56,7 +56,7 @@ can be used in the stock CLI via serial/SSH/telnet to switch to image 1.
    click on "Upload"
 
 The factory image is a UBI image wrapped in an outer FIT carrying the
-device model ID ("84 e1"), which the stock firmware checks before
+device model ID ("84e1"), which the stock firmware checks before
 accepting it. On first boot, zyxel-bootconfig marks the OpenWrt image
 as the selected one so the bootloader keeps booting it.
 
@@ -99,7 +99,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
  create mode 100644 target/linux/mediatek/dts/mt7981b-zyxel-wax300h.dts
 
 diff --git a/package/utils/zyxel-bootconfig/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig/files/95_apply_bootconfig
-index b109b3c95c..47bc696ce8 100644
+index b109b3c9..47bc696c 100644
 --- a/package/utils/zyxel-bootconfig/files/95_apply_bootconfig
 +++ b/package/utils/zyxel-bootconfig/files/95_apply_bootconfig
 @@ -4,7 +4,8 @@ apply_bootconfig() {
@@ -113,7 +113,7 @@ index b109b3c95c..47bc696ce8 100644
  		zyxel-bootconfig "/dev/mtd$mtd_idx" set-image-status 0 valid
  		zyxel-bootconfig "/dev/mtd$mtd_idx" set-active-image 0
 diff --git a/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface b/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface
-index 40b9a926c2..4e6b6f0c78 100644
+index 40b9a926..4e6b6f0c 100644
 --- a/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface
 +++ b/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface
 @@ -38,6 +38,10 @@ set_preinit_iface() {
@@ -129,7 +129,7 @@ index 40b9a926c2..4e6b6f0c78 100644
  		;;
 diff --git a/target/linux/mediatek/dts/mt7981b-zyxel-wax300h.dts b/target/linux/mediatek/dts/mt7981b-zyxel-wax300h.dts
 new file mode 100644
-index 0000000000..ab08c5bcd7
+index 00000000..ab08c5bc
 --- /dev/null
 +++ b/target/linux/mediatek/dts/mt7981b-zyxel-wax300h.dts
 @@ -0,0 +1,292 @@
@@ -426,7 +426,7 @@ index 0000000000..ab08c5bcd7
 +	};
 +};
 diff --git a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network b/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
-index b60e3062dd..93a5e1e2f2 100644
+index b60e3062..93a5e1e2 100644
 --- a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
 +++ b/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
 @@ -230,6 +230,9 @@ mediatek_setup_interfaces()
@@ -440,7 +440,7 @@ index b60e3062dd..93a5e1e2f2 100644
  		ucidef_set_interface_lan "lan1 lan2"
  		;;
 diff --git a/target/linux/mediatek/image/filogic.mk b/target/linux/mediatek/image/filogic.mk
-index 4493a6886e..6dfb9289e8 100644
+index b3348810..3326ac88 100644
 --- a/target/linux/mediatek/image/filogic.mk
 +++ b/target/linux/mediatek/image/filogic.mk
 @@ -3879,6 +3879,14 @@ define Device/zyxel_nwa50ax-pro
@@ -451,7 +451,7 @@ index 4493a6886e..6dfb9289e8 100644
 +  $(call Device/zyxel_filogic_common)
 +  DEVICE_MODEL := WAX300H
 +  DEVICE_DTS := mt7981b-zyxel-wax300h
-+  $(call Device/zyxel-fit-factory-img,84 e1)
++  $(call Device/zyxel-fit-factory-img,84e1)
 +endef
 +TARGET_DEVICES += zyxel_wax300h
 +
