@@ -28,7 +28,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
 
 diff --git a/package/kernel/mac80211/patches/ath11k/952-wifi-ath11k-advertise-HT-VHT-on-5GHz-for-5-6GHz-radios.patch b/package/kernel/mac80211/patches/ath11k/952-wifi-ath11k-advertise-HT-VHT-on-5GHz-for-5-6GHz-radios.patch
 new file mode 100644
-index 0000000000..251a02aa21
+index 00000000..251a02aa
 --- /dev/null
 +++ b/package/kernel/mac80211/patches/ath11k/952-wifi-ath11k-advertise-HT-VHT-on-5GHz-for-5-6GHz-radios.patch
 @@ -0,0 +1,36 @@

@@ -20,7 +20,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
 
 diff --git a/target/linux/qualcommax/patches-6.12/0960-net-phy-at803x-set-IPQ5018-PHY-LEDs-active-high.patch b/target/linux/qualcommax/patches-6.12/0960-net-phy-at803x-set-IPQ5018-PHY-LEDs-active-high.patch
 new file mode 100644
-index 0000000000..e43b5476c4
+index 00000000..e43b5476
 --- /dev/null
 +++ b/target/linux/qualcommax/patches-6.12/0960-net-phy-at803x-set-IPQ5018-PHY-LEDs-active-high.patch
 @@ -0,0 +1,45 @@

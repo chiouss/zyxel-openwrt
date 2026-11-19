@@ -19,7 +19,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
  1 file changed, 4 deletions(-)
 
 diff --git a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq807x-nwax10ax.dtsi b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq807x-nwax10ax.dtsi
-index f92d901bc8..a3c08fec9f 100644
+index f92d901b..a3c08fec 100644
 --- a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq807x-nwax10ax.dtsi
 +++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq807x-nwax10ax.dtsi
 @@ -50,10 +50,6 @@

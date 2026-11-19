@@ -1,0 +1,97 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Chiou <chiouss@gmail.com>
+Date: Wed, 18 Nov 2026 09:06:20 +0800
+Subject: [PATCH] scripts: mkits-zyxel-fit-filogic: take a list of model IDs
+
+The callers pass the factory image's "compat-models" list as raw bytes,
+already padded to the five model IDs the stock firmware images carry,
+with "ff ff" for the unused ones, e.g. "59 e1 ff ff ff ff ff ff ff ff".
+
+Take a list of one to five model IDs of four hex digits each instead,
+e.g. "80e1 81e1", and split them into bytes and pad the list in the
+script. Malformed IDs and empty or too long lists now fail the build,
+instead of producing a factory image the stock firmware rejects.
+
+Update both callers, the NWA50AX Pro on mediatek and the NWA110AX and
+NWA210AX on qualcommax. Their factory images are unchanged.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Signed-off-by: Mark Chiou <chiouss@gmail.com>
+Link: https://github.com/openwrt/openwrt/pull/25506
+Signed-off-by: Jonas Jelonek <jonas@jonasjelonek.de>
+(cherry picked from commit 94b5aa2d63799e47b8da4dbc75d92a6ffd5d271f)
+[25.12 has only the NWA210AX in ipq807x, with its Build/zyxel-nwa210ax-fit
+ recipe: pass "5ce1" there]
+---
+ scripts/mkits-zyxel-fit-filogic.sh       | 23 +++++++++++++++++++++--
+ target/linux/mediatek/image/filogic.mk   |  2 +-
+ target/linux/qualcommax/image/ipq807x.mk |  2 +-
+ 3 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/scripts/mkits-zyxel-fit-filogic.sh b/scripts/mkits-zyxel-fit-filogic.sh
+index 319e187f..4e9e1c93 100755
+--- a/scripts/mkits-zyxel-fit-filogic.sh
++++ b/scripts/mkits-zyxel-fit-filogic.sh
+@@ -4,7 +4,8 @@
+ # Author: David Bauer <mail@david-bauer.net>, based on mkits-zyxel-factory.sh.
+ 
+ usage() {
+-	echo "Usage: `basename $0` output file compat-models"
++	echo "Usage: `basename $0` output file model-ids"
++	echo "  model-ids: 1 to 5 model IDs of 4 hex digits each, e.g. \"80e1 81e1\""
+ 	exit 1
+ }
+ 
+@@ -14,7 +15,25 @@ usage() {
+ # Target output file
+ OUTPUT="$1"; shift
+ FILE="$1"; shift
+-MODELS="$1"; shift
++MODEL_IDS="$1"; shift
++
++# Like the stock firmware, list five model IDs, with unused ones set to ffff
++MODELS=""
++COUNT=0
++for ID in ${MODEL_IDS}; do
++	case "$ID" in
++	[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]) ;;
++	*) echo "Invalid model ID: $ID" >&2; exit 1 ;;
++	esac
++	MODELS="${MODELS}${ID:0:2} ${ID:2:2} "
++	COUNT=$((COUNT + 1))
++done
++[ "$COUNT" -lt 1 ] || [ "$COUNT" -gt 5 ] && usage
++while [ "$COUNT" -lt 5 ]; do
++	MODELS="${MODELS}ff ff "
++	COUNT=$((COUNT + 1))
++done
++MODELS="${MODELS% }"
+ 
+ # Create a default, fully populated DTS file
+ echo "\
+diff --git a/target/linux/mediatek/image/filogic.mk b/target/linux/mediatek/image/filogic.mk
+index 16960366..2b46397b 100644
+--- a/target/linux/mediatek/image/filogic.mk
++++ b/target/linux/mediatek/image/filogic.mk
+@@ -119,7 +119,7 @@ endef
+ 
+ define Build/zyxel-nwa-fit-filogic
+ 	$(TOPDIR)/scripts/mkits-zyxel-fit-filogic.sh \
+-		$@.its $@ "80 e1 81 e1 ff ff ff ff ff ff"
++		$@.its $@ "80e1 81e1"
+ 	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage -f $@.its $@.new
+ 	@mv $@.new $@
+ endef
+diff --git a/target/linux/qualcommax/image/ipq807x.mk b/target/linux/qualcommax/image/ipq807x.mk
+index f356bbbc..3bb2ecca 100644
+--- a/target/linux/qualcommax/image/ipq807x.mk
++++ b/target/linux/qualcommax/image/ipq807x.mk
+@@ -35,7 +35,7 @@ endef
+ 
+ define Build/zyxel-nwa210ax-fit
+ 	$(TOPDIR)/scripts/mkits-zyxel-fit-filogic.sh \
+-		$@.its $@ "5c e1 ff ff ff ff ff ff ff ff"
++		$@.its $@ "5ce1"
+ 	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage -f $@.its $@.new
+ 	@mv $@.new $@
+ endef

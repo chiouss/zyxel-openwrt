@@ -14,8 +14,8 @@ factory image that lists its own model ID, so build the factory images
 with Device/zyxel-fit-factory-img, which carries up to five IDs, and
 drop the single-ID zyxel-nwax10ax-fit:
 
-  NWA110AX 59 e1, WAX510D 56 e1
-  NWA210AX 5c e1, WAX610D 5b e1, WAX630S 6e e1
+  NWA110AX 59e1, WAX510D 56e1
+  NWA210AX 5ce1, WAX610D 5be1, WAX630S 6ee1
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Signed-off-by: Mark Chiou <chiouss@gmail.com>
@@ -24,7 +24,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
  1 file changed, 9 insertions(+), 12 deletions(-)
 
 diff --git a/target/linux/qualcommax/image/ipq807x.mk b/target/linux/qualcommax/image/ipq807x.mk
-index 26a060fa82..a7e5e7fa07 100644
+index 03cb1b2e..882c98f3 100644
 --- a/target/linux/qualcommax/image/ipq807x.mk
 +++ b/target/linux/qualcommax/image/ipq807x.mk
 @@ -1,4 +1,4 @@
@@ -39,7 +39,7 @@ index 26a060fa82..a7e5e7fa07 100644
  
 -define Build/zyxel-nwax10ax-fit
 -	$(TOPDIR)/scripts/mkits-zyxel-fit-filogic.sh \
--		$@.its $@ "$(ZYXEL_MODEL_ID) ff ff ff ff ff ff ff ff"
+-		$@.its $@ "$(ZYXEL_MODEL_ID)"
 -	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage -f $@.its $@.new
 -	@mv $@.new $@
 -endef
@@ -63,8 +63,8 @@ index 26a060fa82..a7e5e7fa07 100644
  	DEVICE_DTS_CONFIG := config@ac01
  	SOC := ipq8070
  	DEVICE_PACKAGES := ipq-wifi-zyxel_nwa110ax zyxel-bootconfig-ipq kmod-leds-lp5562
--	ZYXEL_MODEL_ID := 59 e1
-+	$(call Device/zyxel-fit-factory-img,59 e1,56 e1)
+-	ZYXEL_MODEL_ID := 59e1
++	$(call Device/zyxel-fit-factory-img,59e1 56e1)
  endef
  TARGET_DEVICES += zyxel_nwa110ax
  
@@ -78,7 +78,7 @@ index 26a060fa82..a7e5e7fa07 100644
  	DEVICE_DTS_CONFIG := config@ac02
  	SOC := ipq8071
  	DEVICE_PACKAGES := ipq-wifi-zyxel_nwa210ax zyxel-bootconfig-ipq kmod-leds-lp5562
--	ZYXEL_MODEL_ID := 5c e1
-+	$(call Device/zyxel-fit-factory-img,5c e1,5b e1,6e e1)
+-	ZYXEL_MODEL_ID := 5ce1
++	$(call Device/zyxel-fit-factory-img,5ce1 5be1 6ee1)
  endef
  TARGET_DEVICES += zyxel_nwa210ax

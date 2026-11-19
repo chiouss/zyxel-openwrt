@@ -20,7 +20,7 @@ Signed-off-by: Mark Chiou <chiouss@gmail.com>
  2 files changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/package/utils/zyxel-bootconfig-ipq/Makefile b/package/utils/zyxel-bootconfig-ipq/Makefile
-index 7dd64de862..062a14632e 100644
+index 7dd64de8..062a1463 100644
 --- a/package/utils/zyxel-bootconfig-ipq/Makefile
 +++ b/package/utils/zyxel-bootconfig-ipq/Makefile
 @@ -19,7 +19,7 @@ define Package/zyxel-bootconfig-ipq
@@ -33,7 +33,7 @@ index 7dd64de862..062a14632e 100644
  
  define Package/zyxel-bootconfig-ipq/description
 diff --git a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
-index 05d79da16d..648fec95c0 100644
+index 05d79da1..648fec95 100644
 --- a/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
 +++ b/package/utils/zyxel-bootconfig-ipq/files/95_apply_bootconfig
 @@ -4,7 +4,8 @@ apply_bootconfig() {
